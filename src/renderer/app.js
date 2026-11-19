@@ -822,9 +822,10 @@ function setupParentProofOverlay() {
     });
   }
 
-  // Global Tab key listener for quick toggle during active session
+  // Global Backtick (` / ~) key listener for quick toggle during active session
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'Tab' && activeSession) {
+    const isBacktick = (e.key === '`' || e.key === '~' || e.code === 'Backquote');
+    if (isBacktick && activeSession) {
       const tag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
       if (tag === 'input' || tag === 'textarea') return;
 
