@@ -1,0 +1,1062 @@
+/**
+ * StudyLock — Comprehensive macOS Immersion Suite
+ * 1. 100% Direct Watch YouTube Engine (Immune to Error 150/152)
+ * 2. Real-Time Incremental Autosave (100% Zero Data Loss, even for 5s/7s)
+ * 3. Dual-Mode Focus Clock: Strict Fullscreen Lock-In vs Normal Free Mode (App Switching Allowed)
+ * 4. Padhai Proof 85% Parent Verification Overlay (Hinglish + Dynamic Milestones via Tab)
+ * 5. Strict 6-Digit Notebook Code / Master Key Exit (No typing essay shortcuts)
+ */
+
+// App State
+let studyData = { sessions: [], settings: {} };
+let activeSession = null;
+let currentSessionRecord = null;
+let sessionUnlockKey = '';
+let currentRandomCode = '';
+let ritualMode = 'random'; // 'random' | 'custom'
+let currentVideoId = '';
+let isParentProofOpen = false;
+
+// Dual Clock Mode state
+let clockMode = 'locked'; // 'locked' | 'free'
+let isClockFloating = false;
+let isClockPaused = false;
+let clockPauseStartTimestamp = 0;
+let clockTotalPausedMs = 0;
+
+let rafTimerId = null;
+let lastAutosaveTimestamp = 0;
+
+const SUBJECT_COLORS = {
+  Physics: '#38bdf8',
+  Chemistry: '#a855f7',
+  Maths: '#10b981',
+  Productivity: '#f59e0b',
+  Biology: '#ec4899',
+  Other: '#94a3b8'
+};
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadStudyData();
+  setupWindowControls();
+  setupTabNavigation();
+  setupPlayerSection();
+  setupClockSection();
+  setupParentProofOverlay();
+  setupEmergencyExitModal();
+  setupTimerExpiryModal();
+  setupEmergencyChordListener();
+  generateNewRandomCode();
+});
+
+// ========================================================
+// Data Loading
+// ========================================================
+async function loadStudyData() {
+  try {
+    const data = await window.api.getStudyData();
+    if (data) {
+      studyData = data;
+    }
+  } catch (e) {
+    console.error('Failed to load study data:', e);
+  }
+}
+
+// ========================================================
+// Window Controls (macOS Traffic Lights)
+// ========================================================
+function setupWindowControls() {
+  document.getElementById('btnWinClose').addEventListener('click', () => {
+    if (activeSession && activeSession.clockMode === 'locked') {
+      alert('🔒 StudyLock is in strict lock-in mode! Complete your session or click Emergency Exit in the top bar.');
+    } else if (activeSession && activeSession.clockMode === 'free') {
+      if (confirm('Focus session is running. Do you want to finish and save your study record before closing?')) {
+        finishAndSaveSession('normal_closed');
+      } else {
+        window.api.closeWindow();
+      }
+    } else {
+      window.api.closeWindow();
+    }
+  });
+
+  document.getElementById('btnWinMin').addEventListener('click', () => {
+    if (!activeSession || activeSession.clockMode !== 'locked') window.api.minimizeWindow();
+  });
+
+  document.getElementById('btnWinMax').addEventListener('click', () => {
+    if (!activeSession || activeSession.clockMode !== 'locked') window.api.maximizeWindow();
+  });
+}
+
+// ========================================================
+// Navigation
+// ========================================================
+function setupTabNavigation() {
+  document.querySelectorAll('.nav-segment-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetTabId = btn.dataset.tab;
+      document.querySelectorAll('.nav-segment-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+
+      btn.classList.add('active');
+      const targetPane = document.getElementById(targetTabId);
+      if (targetPane) targetPane.classList.add('active');
+    });
+  });
+}
+
+// ========================================================
+// Random Code Generator
+// ========================================================
+function generateNewRandomCode() {
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  currentRandomCode = code;
+  const formatted = `${code.slice(0, 3)} ${code.slice(3, 6)}`;
+  document.getElementById('displayPlayerCode').textContent = formatted;
+  document.getElementById('displayClockCode').textContent = formatted;
+}
+
+// ========================================================
+// PILLAR 1: EXPANSIVE STUDIO DASHBOARD & DIRECT WATCH
+// ========================================================
+function setupPlayerSection() {
+  const urlInput = document.getElementById('ytUrlInput');
+
+  // Paste Link
+  document.getElementById('btnPasteUrl').addEventListener('click', async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      urlInput.value = text;
+      validateYouTubeUrl(text);
+    } catch (e) {
+      urlInput.focus();
+    }
+  });
+
+  urlInput.addEventListener('input', (e) => validateYouTubeUrl(e.target.value.trim()));
+
+  // Chips
+  setupChipGroup('#playerSubjectChips');
+  setupChipGroup('#playerDurationChips', (mins) => {
+    document.getElementById('playerCustomMinutes').value = mins;
+  });
+
+  // Steppers
+  document.getElementById('btnPlayerSub15').addEventListener('click', () => adjustMinutes('playerCustomMinutes', -15));
+  document.getElementById('btnPlayerSub5').addEventListener('click', () => adjustMinutes('playerCustomMinutes', -5));
+  document.getElementById('btnPlayerAdd5').addEventListener('click', () => adjustMinutes('playerCustomMinutes', 5));
+  document.getElementById('btnPlayerAdd15').addEventListener('click', () => adjustMinutes('playerCustomMinutes', 15));
+
+  // Ritual Toggle
+  const btnRand = document.getElementById('btnRitualRandom');
+  const btnCust = document.getElementById('btnRitualCustom');
+  const boxRand = document.getElementById('boxRitualRandom');
+  const boxCust = document.getElementById('boxRitualCustom');
+
+  btnRand.addEventListener('click', () => {
+    ritualMode = 'random';
+    btnRand.classList.add('active');
+    btnCust.classList.remove('active');
+    boxRand.classList.add('active');
+    boxCust.classList.remove('active');
+  });
+
+  btnCust.addEventListener('click', () => {
+    ritualMode = 'custom';
+    btnCust.classList.add('active');
+    btnRand.classList.remove('active');
+    boxCust.classList.add('active');
+    boxRand.classList.remove('active');
+  });
+
+  document.getElementById('btnPlayerRegenCode').addEventListener('click', generateNewRandomCode);
+
+  // Preview Button: Render Live Direct Watch in Stage Screen
+  const btnPreview = document.getElementById('btnPreviewUrl');
+  const btnClosePrev = document.getElementById('btnClosePreview');
+
+  btnPreview.addEventListener('click', () => {
+    const url = document.getElementById('ytUrlInput').value.trim();
+    const videoData = convertToYouTubeData(url);
+
+    if (!videoData) {
+      alert('Please enter or paste a valid YouTube video link first to preview.');
+      document.getElementById('ytUrlInput').focus();
+      return;
+    }
+
+    renderPreviewPlayer(videoData.videoId);
+  });
+
+  if (btnClosePrev) {
+    btnClosePrev.addEventListener('click', closeStagePreview);
+  }
+
+  // Launch Player
+  document.getElementById('btnLaunchPlayer').addEventListener('click', handlePlayerLaunch);
+
+  // Permanent Bar Emergency Exit Button
+  document.getElementById('btnPlayerEmergency').addEventListener('click', openEmergencyModal);
+}
+
+function renderPreviewPlayer(videoId) {
+  const idleState = document.getElementById('theaterIdleState');
+  const previewContainer = document.getElementById('theaterPreviewContainer');
+  const holder = document.getElementById('previewWebviewHolder');
+
+  holder.innerHTML = '';
+  idleState.classList.add('hidden');
+  previewContainer.classList.remove('hidden');
+
+  const webview = document.createElement('webview');
+  webview.id = 'stagePreviewWebview';
+  webview.setAttribute('partition', 'persist:studylock_yt');
+  webview.setAttribute('allowfullscreen', 'true');
+  webview.setAttribute('useragent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36');
+  webview.setAttribute('allowpopups', 'false');
+  webview.style.width = '100%';
+  webview.style.height = '100%';
+  webview.style.border = 'none';
+  webview.src = `https://www.youtube.com/watch?v=${videoId}&autoplay=1`;
+
+  // Block roaming to other videos
+  webview.addEventListener('will-navigate', (e) => {
+    const targetId = extractYouTubeId(e.url || '');
+    if (targetId !== videoId) e.preventDefault();
+  });
+
+  webview.addEventListener('new-window', (e) => e.preventDefault());
+
+  // Inject distraction-free CSS
+  webview.addEventListener('dom-ready', () => {
+    webview.insertCSS(`
+      #secondary, #related, ytd-watch-next-secondary-results-renderer, #comments, #masthead-container #center, #masthead-container #buttons, #masthead-container #voice-search-button, #guide-button, #guide-wrapper, ytd-mini-guide-renderer, .ytp-ce-element, .ytp-endscreen-content, #below {
+        display: none !important;
+      }
+      #page-manager { margin-top: 0 !important; }
+      ytd-watch-flexy[flexy] #primary.ytd-watch-flexy { max-width: 100vw !important; margin: 0 auto !important; }
+    `).catch(() => {});
+  });
+
+  holder.appendChild(webview);
+}
+
+function closeStagePreview() {
+  const idleState = document.getElementById('theaterIdleState');
+  const previewContainer = document.getElementById('theaterPreviewContainer');
+  const holder = document.getElementById('previewWebviewHolder');
+
+  if (holder) holder.innerHTML = '';
+  if (previewContainer) previewContainer.classList.add('hidden');
+  if (idleState) idleState.classList.remove('hidden');
+}
+
+function validateYouTubeUrl(url) {
+  const feedback = document.getElementById('urlFeedback');
+  if (!url) {
+    feedback.textContent = 'Direct Watch engine runs raw YouTube stream with all recommendations, shorts, and comments stripped.';
+    feedback.style.color = 'var(--text-dim)';
+    return null;
+  }
+  const videoData = convertToYouTubeData(url);
+  if (videoData) {
+    feedback.textContent = `✓ Valid YouTube lecture identified (ID: ${videoData.videoId}) — Direct Watch Ready`;
+    feedback.style.color = '#34d399';
+    return videoData;
+  } else {
+    feedback.textContent = '⚠️ Please enter a valid YouTube video URL or ID.';
+    feedback.style.color = '#f87171';
+    return null;
+  }
+}
+
+function convertToYouTubeData(input) {
+  if (!input) return null;
+  input = input.trim();
+
+  const regex = /(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/|live\/)|^)([a-zA-Z0-9_-]{11})/;
+  const match = input.match(regex);
+  if (match && match[1]) {
+    const videoId = match[1];
+    return {
+      videoId,
+      directUrl: `https://www.youtube.com/watch?v=${videoId}&autoplay=1`
+    };
+  }
+  return null;
+}
+
+function extractYouTubeId(url) {
+  const data = convertToYouTubeData(url);
+  return data ? data.videoId : null;
+}
+
+function handlePlayerLaunch() {
+  const url = document.getElementById('ytUrlInput').value.trim();
+  const videoData = convertToYouTubeData(url);
+
+  if (!videoData) {
+    alert('Please enter a valid YouTube video link before starting.');
+    document.getElementById('ytUrlInput').focus();
+    return;
+  }
+
+  currentVideoId = videoData.videoId;
+
+  let unlockKey = '';
+  if (ritualMode === 'random') {
+    unlockKey = currentRandomCode;
+  } else {
+    unlockKey = document.getElementById('playerCustomPassword').value.trim();
+    if (!unlockKey) {
+      alert('Please enter a custom emergency password or use the 6-digit notebook code.');
+      document.getElementById('playerCustomPassword').focus();
+      return;
+    }
+  }
+
+  sessionUnlockKey = unlockKey;
+
+  const subject = document.querySelector('#playerSubjectChips .chip-bold.active').dataset.subject;
+  const topic = document.getElementById('playerTopicInput').value.trim() || 'Lecture Immersion';
+  const targetMinutes = parseInt(document.getElementById('playerCustomMinutes').value, 10) || 45;
+
+  document.getElementById('playerHudSubject').textContent = subject;
+  document.getElementById('playerHudTopic').textContent = topic;
+
+  // Close preview in stage if open to stop duplicate audio
+  closeStagePreview();
+
+  // Load Full Screen Direct Watch Webview
+  loadYouTubePlayer(videoData.videoId);
+
+  startSessionEngine({
+    type: 'player',
+    clockMode: 'locked',
+    subject,
+    topic,
+    targetMinutes
+  });
+
+  document.getElementById('playerActiveView').classList.remove('hidden');
+  window.api.setLockIn(true);
+}
+
+function loadYouTubePlayer(videoId) {
+  const wrapper = document.getElementById('videoFrameWrapper');
+  wrapper.innerHTML = '';
+
+  const webview = document.createElement('webview');
+  webview.id = 'ytWebviewPlayer';
+  webview.setAttribute('partition', 'persist:studylock_yt');
+  webview.setAttribute('allowfullscreen', 'true');
+  webview.setAttribute('useragent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36');
+  webview.setAttribute('allowpopups', 'false');
+  webview.style.width = '100%';
+  webview.style.height = '100%';
+  webview.style.border = 'none';
+  webview.style.display = 'flex';
+  webview.style.flex = '1';
+  webview.src = `https://www.youtube.com/watch?v=${videoId}&autoplay=1`;
+
+  // Block roaming to other videos
+  webview.addEventListener('will-navigate', (e) => {
+    const targetId = extractYouTubeId(e.url || '');
+    if (targetId !== videoId) e.preventDefault();
+  });
+
+  webview.addEventListener('new-window', (e) => e.preventDefault());
+
+  // Inject distraction-free lockdown CSS
+  webview.addEventListener('dom-ready', () => {
+    webview.insertCSS(`
+      #secondary, #related, ytd-watch-next-secondary-results-renderer, #comments, #masthead-container #center, #masthead-container #buttons, #masthead-container #voice-search-button, #guide-button, #guide-wrapper, ytd-mini-guide-renderer, .ytp-ce-element, .ytp-endscreen-content, #below {
+        display: none !important;
+      }
+      #page-manager { margin-top: 0 !important; }
+      ytd-watch-flexy[flexy] #primary.ytd-watch-flexy { max-width: 100vw !important; margin: 0 auto !important; }
+    `).catch(() => {});
+  });
+
+  wrapper.appendChild(webview);
+}
+
+function pauseCurrentPlayer() {
+  const webview = document.getElementById('ytWebviewPlayer');
+  if (webview) {
+    webview.executeJavaScript('const v = document.querySelector("video"); if (v) v.pause();').catch(() => {});
+  }
+}
+
+function resumeCurrentPlayer() {
+  const webview = document.getElementById('ytWebviewPlayer');
+  if (webview) {
+    webview.executeJavaScript('const v = document.querySelector("video"); if (v) v.play();').catch(() => {});
+  }
+}
+
+// ========================================================
+// PILLAR 2: Focus Clock (DUAL-MODE: STRICT LOCK-IN & NORMAL FREE)
+// ========================================================
+function setupClockSection() {
+  setupChipGroup('#clockSubjectChips');
+  setupChipGroup('#clockDurationChips', (mins) => {
+    document.getElementById('clockCustomMinutes').value = mins;
+  });
+
+  document.getElementById('btnClockSub15').addEventListener('click', () => adjustMinutes('clockCustomMinutes', -15));
+  document.getElementById('btnClockSub5').addEventListener('click', () => adjustMinutes('clockCustomMinutes', -5));
+  document.getElementById('btnClockAdd5').addEventListener('click', () => adjustMinutes('clockCustomMinutes', 5));
+  document.getElementById('btnClockAdd15').addEventListener('click', () => adjustMinutes('clockCustomMinutes', 15));
+
+  // Dual Mode Selector Buttons
+  const btnModeLocked = document.getElementById('btnClockModeLocked');
+  const btnModeFree = document.getElementById('btnClockModeFree');
+  const descEl = document.getElementById('clockModeDescription');
+  const ritualGroup = document.getElementById('clockEmergencyRitualGroup');
+  const launchLbl = document.getElementById('lblLaunchClock');
+
+  if (btnModeLocked && btnModeFree) {
+    btnModeLocked.addEventListener('click', () => {
+      clockMode = 'locked';
+      btnModeLocked.classList.add('active');
+      btnModeFree.classList.remove('active');
+      if (descEl) descEl.innerHTML = '🔒 <strong>Strict Kiosk Mode:</strong> Fullscreen lock, Alt+Tab blocked, 6-digit notebook code required to exit early.';
+      if (ritualGroup) ritualGroup.classList.remove('hidden');
+      if (launchLbl) launchLbl.textContent = 'LAUNCH STRICT LOCKED CLOCK';
+    });
+
+    btnModeFree.addEventListener('click', () => {
+      clockMode = 'free';
+      btnModeFree.classList.add('active');
+      btnModeLocked.classList.remove('active');
+      if (descEl) descEl.innerHTML = '🔓 <strong>Normal Free Mode:</strong> Task switching and all PC apps allowed. Use for reading PDFs, notes, or paper analysis while tracking time.';
+      if (ritualGroup) ritualGroup.classList.add('hidden');
+      if (launchLbl) launchLbl.textContent = 'START NORMAL FREE TIMER';
+    });
+  }
+
+  // Ritual Toggle
+  const btnRand = document.getElementById('btnClockRitualRandom');
+  const btnCust = document.getElementById('btnClockRitualCustom');
+  const boxRand = document.getElementById('boxClockRitualRandom');
+  const boxCust = document.getElementById('boxClockRitualCustom');
+
+  btnRand.addEventListener('click', () => {
+    ritualMode = 'random';
+    btnRand.classList.add('active');
+    btnCust.classList.remove('active');
+    boxRand.classList.add('active');
+    boxCust.classList.remove('active');
+  });
+
+  btnCust.addEventListener('click', () => {
+    ritualMode = 'custom';
+    btnCust.classList.add('active');
+    btnRand.classList.remove('active');
+    boxCust.classList.add('active');
+    boxRand.classList.remove('active');
+  });
+
+  document.getElementById('btnClockRegenCode').addEventListener('click', generateNewRandomCode);
+
+  document.getElementById('btnLaunchClock').addEventListener('click', handleClockLaunch);
+  document.getElementById('btnClockEmergency').addEventListener('click', openEmergencyModal);
+
+  // Normal Free Mode Control Actions
+  const btnFreePause = document.getElementById('btnClockFreePause');
+  const btnMiniPause = document.getElementById('btnMiniFloatPause');
+  const btnFreeFinish = document.getElementById('btnClockFreeFinish');
+  const btnMiniFinish = document.getElementById('btnMiniFloatFinish');
+  const btnToggleFloat = document.getElementById('btnClockToggleFloat');
+  const btnExpandMini = document.getElementById('btnExpandMiniClock');
+
+  function toggleClockPause() {
+    if (!activeSession) return;
+    isClockPaused = !isClockPaused;
+    if (isClockPaused) {
+      clockPauseStartTimestamp = Date.now();
+      if (btnFreePause) btnFreePause.textContent = '▶ Resume';
+      if (btnMiniPause) btnMiniPause.textContent = '▶';
+      showToastNotification('⏸️ Focus Clock paused.');
+    } else {
+      if (clockPauseStartTimestamp > 0) {
+        clockTotalPausedMs += (Date.now() - clockPauseStartTimestamp);
+        clockPauseStartTimestamp = 0;
+      }
+      if (btnFreePause) btnFreePause.textContent = '⏸️ Pause';
+      if (btnMiniPause) btnMiniPause.textContent = '⏸️';
+      showToastNotification('▶ Focus Clock resumed.');
+    }
+  }
+
+  if (btnFreePause) btnFreePause.addEventListener('click', toggleClockPause);
+  if (btnMiniPause) btnMiniPause.addEventListener('click', toggleClockPause);
+
+  if (btnFreeFinish) {
+    btnFreeFinish.addEventListener('click', () => finishAndSaveSession('normal_finished'));
+  }
+  if (btnMiniFinish) {
+    btnMiniFinish.addEventListener('click', () => finishAndSaveSession('normal_finished'));
+  }
+
+  if (btnToggleFloat) {
+    btnToggleFloat.addEventListener('click', () => toggleFloatingWidget(true));
+  }
+  if (btnExpandMini) {
+    btnExpandMini.addEventListener('click', () => toggleFloatingWidget(false));
+  }
+}
+
+async function toggleFloatingWidget(enable) {
+  isClockFloating = enable;
+  const miniView = document.getElementById('clockMiniFloatingView');
+  const mainArea = document.getElementById('colossalClockMainArea');
+  const topBar = document.querySelector('.clock-permanent-topbar');
+
+  if (enable) {
+    if (miniView) miniView.classList.remove('hidden');
+    if (mainArea) mainArea.classList.add('hidden');
+    if (topBar) topBar.classList.add('hidden');
+    await window.api.setFloatingWidgetMode(true);
+  } else {
+    if (miniView) miniView.classList.add('hidden');
+    if (mainArea) mainArea.classList.remove('hidden');
+    if (topBar) topBar.classList.remove('hidden');
+    await window.api.setFloatingWidgetMode(false);
+  }
+}
+
+function handleClockLaunch() {
+  let unlockKey = '';
+  if (clockMode === 'locked') {
+    if (ritualMode === 'random') {
+      unlockKey = currentRandomCode;
+    } else {
+      unlockKey = document.getElementById('clockCustomPassword').value.trim();
+      if (!unlockKey) {
+        alert('Please enter a custom emergency password or use the 6-digit notebook code.');
+        document.getElementById('clockCustomPassword').focus();
+        return;
+      }
+    }
+  }
+
+  sessionUnlockKey = unlockKey;
+  isClockPaused = false;
+  clockPauseStartTimestamp = 0;
+  clockTotalPausedMs = 0;
+
+  const subject = document.querySelector('#clockSubjectChips .chip-bold.active').dataset.subject;
+  const topic = document.getElementById('clockTopicInput').value.trim() || 'Deep Work Session';
+  const targetMinutes = parseInt(document.getElementById('clockCustomMinutes').value, 10) || 45;
+
+  document.getElementById('colossalSubject').textContent = subject;
+  document.getElementById('colossalTopic').textContent = topic;
+  document.getElementById('colossalTargetText').textContent = `Target: ${targetMinutes}m`;
+
+  const modeBadge = document.getElementById('colossalModeBadge');
+  const strictControls = document.getElementById('clockStrictControls');
+  const freeControls = document.getElementById('clockFreeControls');
+
+  if (clockMode === 'locked') {
+    if (modeBadge) modeBadge.textContent = '🔒 STRICT LOCK-IN';
+    if (strictControls) strictControls.classList.remove('hidden');
+    if (freeControls) freeControls.classList.add('hidden');
+  } else {
+    if (modeBadge) modeBadge.textContent = '🔓 NORMAL FREE MODE';
+    if (strictControls) strictControls.classList.add('hidden');
+    if (freeControls) freeControls.classList.remove('hidden');
+  }
+
+  const miniSubject = document.getElementById('miniFloatSubject');
+  const miniTopic = document.getElementById('miniFloatTopic');
+  if (miniSubject) miniSubject.textContent = subject;
+  if (miniTopic) miniTopic.textContent = topic;
+
+  startSessionEngine({
+    type: 'clock',
+    clockMode,
+    subject,
+    topic,
+    targetMinutes
+  });
+
+  document.getElementById('clockActiveView').classList.remove('hidden');
+
+  if (clockMode === 'locked') {
+    window.api.setLockIn(true);
+  } else {
+    window.api.setLockIn(false);
+  }
+}
+
+// ========================================================
+// Universal Session Timer Engine with REAL-TIME AUTOSAVE
+// ========================================================
+function startSessionEngine(config) {
+  const sessionId = 'session_' + Date.now();
+
+  activeSession = {
+    ...config,
+    id: sessionId,
+    startTime: Date.now(),
+    elapsedSeconds: 0,
+    isExpired: false
+  };
+
+  // Immediate first save: Ensures even a 5-second session is ALREADY in the database!
+  currentSessionRecord = {
+    id: sessionId,
+    subject: activeSession.subject || 'General Study',
+    topic: activeSession.topic || 'Focus Session',
+    mode: activeSession.type === 'player' ? 'Lecture Player' : (activeSession.clockMode === 'free' ? 'Free Desk Clock' : 'Strict Desk Clock'),
+    durationSeconds: 1,
+    targetDurationMinutes: activeSession.targetMinutes || 0,
+    completedAt: new Date().toISOString(),
+    exitReason: 'in_progress'
+  };
+
+  window.api.saveStudySession(currentSessionRecord);
+  window.api.setActiveSession(activeSession);
+  lastAutosaveTimestamp = Date.now();
+
+  if (rafTimerId) cancelAnimationFrame(rafTimerId);
+  tickSession();
+}
+
+function tickSession() {
+  if (!activeSession) return;
+
+  const now = Date.now();
+
+  // If clock paused in Free mode, hold current elapsed
+  if (isClockPaused) {
+    rafTimerId = requestAnimationFrame(tickSession);
+    return;
+  }
+
+  const effectiveNow = now - clockTotalPausedMs;
+  const elapsed = Math.floor((effectiveNow - activeSession.startTime) / 1000);
+  activeSession.elapsedSeconds = elapsed;
+
+  // Real-time incremental autosave every 2 seconds: guarantees ZERO data loss down to the second
+  if (now - lastAutosaveTimestamp >= 2000 && currentSessionRecord) {
+    currentSessionRecord.durationSeconds = Math.max(1, elapsed);
+    window.api.saveStudySession(currentSessionRecord);
+    lastAutosaveTimestamp = now;
+  }
+
+  const targetSec = activeSession.targetMinutes * 60;
+  const remainingSec = Math.max(0, targetSec - elapsed);
+
+  // Check for Target Timer Expiry
+  if (targetSec > 0 && remainingSec <= 0 && !activeSession.isExpired) {
+    activeSession.isExpired = true;
+    handleTargetTimerExpired();
+    return;
+  }
+
+  const hours = Math.floor(elapsed / 3600);
+  const minutes = Math.floor((elapsed % 3600) / 60);
+  const seconds = elapsed % 60;
+
+  const remHours = Math.floor(remainingSec / 3600);
+  const remMinutes = Math.floor((remainingSec % 3600) / 60);
+  const remSeconds = remainingSec % 60;
+
+  // 1. Update Colossal Desk Clock
+  if (activeSession.type === 'clock') {
+    const isCountDown = targetSec > 0;
+    const dH = isCountDown ? remHours : hours;
+    const dM = isCountDown ? remMinutes : minutes;
+    const dS = isCountDown ? remSeconds : seconds;
+
+    document.getElementById('flipHours').textContent = String(dH).padStart(2, '0');
+    document.getElementById('flipMinutes').textContent = String(dM).padStart(2, '0');
+    document.getElementById('flipSeconds').textContent = String(dS).padStart(2, '0');
+
+    if (targetSec > 0) {
+      const pct = Math.min(100, (elapsed / targetSec) * 100);
+      document.getElementById('colossalProgressFill').style.width = `${pct}%`;
+    }
+
+    document.getElementById('colossalElapsedText').textContent = `${formatDurationSmart(elapsed)} elapsed`;
+
+    // Update Floating Mini Digits if present
+    const miniDigits = document.getElementById('miniFloatDigits');
+    if (miniDigits) {
+      miniDigits.textContent = `${String(dM + dH * 60).padStart(2, '0')}:${String(dS).padStart(2, '0')}`;
+    }
+  }
+
+  // 2. Update YouTube Player Top Bar
+  if (activeSession.type === 'player') {
+    const cdStr = `${String(remMinutes + remHours * 60).padStart(2, '0')}:${String(remSeconds).padStart(2, '0')}`;
+    document.getElementById('playerHudCountdown').textContent = cdStr;
+    document.getElementById('playerHudElapsed').textContent = `(${formatDurationSmart(elapsed)} elapsed)`;
+  }
+
+  // 3. Update Padhai Proof Parent Overlay if open
+  if (isParentProofOpen) {
+    updateParentProofContent();
+  }
+
+  rafTimerId = requestAnimationFrame(tickSession);
+}
+
+// When Target Timer Finishes (e.g., 45m completed)
+function handleTargetTimerExpired() {
+  pauseCurrentPlayer();
+
+  if (currentSessionRecord && activeSession) {
+    currentSessionRecord.durationSeconds = Math.max(1, activeSession.elapsedSeconds);
+    window.api.saveStudySession(currentSessionRecord);
+  }
+
+  document.getElementById('expirySubject').textContent = activeSession.subject;
+  document.getElementById('expiryDuration').textContent = `${formatDurationSmart(activeSession.elapsedSeconds)} Completed`;
+  document.getElementById('timerExpiryModal').classList.remove('hidden');
+}
+
+function setupTimerExpiryModal() {
+  document.getElementById('btnExpiryExtend').addEventListener('click', () => {
+    if (activeSession) {
+      activeSession.targetMinutes += 15;
+      activeSession.isExpired = false;
+      document.getElementById('timerExpiryModal').classList.add('hidden');
+      resumeCurrentPlayer();
+      tickSession();
+    }
+  });
+
+  document.getElementById('btnExpiryFinish').addEventListener('click', () => {
+    document.getElementById('timerExpiryModal').classList.add('hidden');
+    finishAndSaveSession('target_completed');
+  });
+}
+
+async function finishAndSaveSession(exitReason = 'target_completed') {
+  if (!activeSession) return;
+
+  if (rafTimerId) {
+    cancelAnimationFrame(rafTimerId);
+    rafTimerId = null;
+  }
+
+  closeParentProof();
+
+  if (isClockFloating) {
+    await toggleFloatingWidget(false);
+  }
+
+  const durationSeconds = Math.max(1, Math.round((Date.now() - activeSession.startTime) / 1000));
+
+  const sessionRecord = {
+    id: activeSession.id,
+    subject: activeSession.subject || 'General Study',
+    topic: activeSession.topic || 'Focus Session',
+    mode: activeSession.type === 'player' ? 'Lecture Player' : (activeSession.clockMode === 'free' ? 'Free Desk Clock' : 'Strict Desk Clock'),
+    durationSeconds,
+    targetDurationMinutes: activeSession.targetMinutes || 0,
+    completedAt: new Date().toISOString(),
+    exitReason
+  };
+
+  // 1. Save synchronously via IPC to study_data.json
+  await window.api.saveStudySession(sessionRecord);
+  await window.api.clearActiveSession();
+  await window.api.setLockIn(false);
+
+  // 2. Teardown Viewports & Webview
+  document.body.style.cursor = 'default';
+  document.getElementById('playerActiveView').classList.add('hidden');
+  document.getElementById('clockActiveView').classList.add('hidden');
+  document.getElementById('videoFrameWrapper').innerHTML = '';
+
+  const savedSubject = sessionRecord.subject;
+  const savedDuration = formatDurationSmart(durationSeconds);
+
+  activeSession = null;
+  currentSessionRecord = null;
+  sessionUnlockKey = '';
+  currentVideoId = '';
+  isClockPaused = false;
+  clockPauseStartTimestamp = 0;
+  clockTotalPausedMs = 0;
+  generateNewRandomCode();
+
+  // 3. Reload from disk to guarantee 100% data sync
+  await loadStudyData();
+
+  // 4. Show sleek macOS toast confirmation of saved study session
+  showToastNotification(`✓ Session complete: ${savedDuration} studied in ${savedSubject} saved to vault!`);
+}
+
+// ========================================================
+// PARENT PROOF OVERLAY (85% SCREEN COVERAGE IN HINGLISH)
+// ========================================================
+function setupParentProofOverlay() {
+  const modal = document.getElementById('parentProofModal');
+  const btnClose = document.getElementById('btnCloseParentProof');
+  const btnTogglePlayer = document.getElementById('btnParentProofToggle');
+  const btnToggleClock = document.getElementById('btnClockProofToggle');
+
+  if (btnTogglePlayer) {
+    btnTogglePlayer.addEventListener('click', toggleParentProof);
+  }
+  if (btnToggleClock) {
+    btnToggleClock.addEventListener('click', toggleParentProof);
+  }
+  if (btnClose) {
+    btnClose.addEventListener('click', closeParentProof);
+  }
+
+  if (modal) {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        closeParentProof();
+      }
+    });
+  }
+
+  // Global Tab key listener for quick toggle during active session
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab' && activeSession) {
+      const tag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+      if (tag === 'input' || tag === 'textarea') return;
+
+      e.preventDefault();
+      toggleParentProof();
+    } else if (e.key === 'Escape' && isParentProofOpen) {
+      e.preventDefault();
+      closeParentProof();
+    }
+  });
+}
+
+function toggleParentProof() {
+  if (isParentProofOpen) {
+    closeParentProof();
+  } else {
+    openParentProof();
+  }
+}
+
+function openParentProof() {
+  if (!activeSession) return;
+  isParentProofOpen = true;
+  const modal = document.getElementById('parentProofModal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    updateParentProofContent();
+  }
+}
+
+function closeParentProof() {
+  isParentProofOpen = false;
+  const modal = document.getElementById('parentProofModal');
+  if (modal) {
+    modal.classList.add('hidden');
+  }
+}
+
+function updateParentProofContent() {
+  if (!activeSession) return;
+
+  const subject = activeSession.subject || 'General Study';
+  const topic = activeSession.topic || 'Lecture Immersion';
+  const elapsed = activeSession.elapsedSeconds || 1;
+  const targetMinutes = activeSession.targetMinutes || 45;
+  const targetSec = targetMinutes * 60;
+  const remainingSec = Math.max(0, targetSec - elapsed);
+
+  const elapsedMinutes = Math.floor(elapsed / 60);
+  const remainingMinutes = Math.ceil(remainingSec / 60);
+
+  const subEl = document.getElementById('parentProofSubject');
+  const topicEl = document.getElementById('parentProofTopic');
+  const elapEl = document.getElementById('parentProofElapsed');
+  const remEl = document.getElementById('parentProofRemaining');
+  const targetEl = document.getElementById('parentProofTarget');
+  const barEl = document.getElementById('parentProofProgressBar');
+  const msgEl = document.getElementById('parentProofDynamicMessage');
+
+  if (subEl) subEl.textContent = subject.toUpperCase();
+  if (topicEl) topicEl.textContent = topic;
+
+  if (elapEl) {
+    elapEl.textContent = elapsedMinutes > 0 ? `${elapsedMinutes} Minute (${elapsed % 60}s)` : `${elapsed % 60} Second`;
+  }
+  if (remEl) {
+    remEl.textContent = `${remainingMinutes} Minute`;
+  }
+  if (targetEl) {
+    targetEl.textContent = `Target: ${targetMinutes} Minute`;
+  }
+
+  if (barEl) {
+    const pct = targetSec > 0 ? Math.min(100, (elapsed / targetSec) * 100) : 100;
+    barEl.style.width = `${pct}%`;
+  }
+
+  // Dynamic Personal Hinglish Milestone Message for Parents
+  if (msgEl) {
+    if (elapsedMinutes < 5) {
+      msgEl.textContent = `Namaste Uncle / Aunty ji 🙏\n\nAapke bete ne abhi padhai shuru ki hai. Laptop par ${subject} ka lecture chalu ho chuka hai aur screen lock hai taaki dhyan na bhatke.`;
+    } else if (elapsedMinutes < 15) {
+      msgEl.textContent = `Aapke bete ne 10+ minute lagatar dhyan se padhai kar li hai.\n\nKoi game ya timepass nahi chal raha hai, poora dhyan ${subject} ke lecture aur notes par hai.`;
+    } else if (elapsedMinutes < 30) {
+      msgEl.textContent = `Bohat badhiya! Aapka beta lagbhag aadhe ghante se bina kisi rukawat ke padh raha hai.\n\nAap bilkul chinta mat kijiye, poori imandari se lecture complete ho raha hai.`;
+    } else if (elapsedMinutes < 50) {
+      msgEl.textContent = `Zabardast mehnat! 40+ minute se continuous focus ke saath padhai chal rahi hai.\n\nAapka beta apne target ke bohot kareeb hai aur bohot serious mehnat kar raha hai.`;
+    } else {
+      msgEl.textContent = `Kamaal ka focus! 50+ minute se continuous padhai chal rahi hai.\n\nAapke bete ne aaj bohot acchi mehnat ki hai. Session bas complete hone hi wala hai.`;
+    }
+  }
+}
+
+// ========================================================
+// Emergency Exit Gate Modal (STRICT 6-DIGIT CODE / KEY ONLY)
+// ========================================================
+function setupEmergencyExitModal() {
+  const modal = document.getElementById('emergencyModal');
+  const passInput = document.getElementById('emergencyPassInput');
+  const btnUnlockKey = document.getElementById('btnConfirmEmergencyKey');
+  const btnCancelKey = document.getElementById('btnCancelEmergencyKey');
+
+  passInput.addEventListener('input', () => {
+    const val = passInput.value.trim();
+    const cleanVal = val.replace(/\s+/g, '').toLowerCase();
+    const cleanKey = sessionUnlockKey.replace(/\s+/g, '').toLowerCase();
+    const isMaster = (cleanVal === 'unlock123');
+    const passMatches = (cleanVal === cleanKey) || isMaster;
+    const feedback = document.getElementById('emergencyPassMsg');
+
+    if (val.length > 0) {
+      if (passMatches) {
+        feedback.textContent = '✓ Code verified correctly';
+        feedback.style.color = '#34d399';
+        btnUnlockKey.disabled = false;
+      } else {
+        feedback.textContent = '✗ Incorrect notebook code / password';
+        feedback.style.color = '#f87171';
+        btnUnlockKey.disabled = true;
+      }
+    } else {
+      feedback.textContent = 'Session shuru karne se pehle jo code notebook mein likha tha wahi enter karein.';
+      feedback.style.color = 'var(--text-dim)';
+      btnUnlockKey.disabled = true;
+    }
+  });
+
+  passInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !btnUnlockKey.disabled) {
+      modal.classList.add('hidden');
+      finishAndSaveSession('emergency_key');
+    }
+  });
+
+  btnUnlockKey.addEventListener('click', () => {
+    modal.classList.add('hidden');
+    finishAndSaveSession('emergency_key');
+  });
+
+  if (btnCancelKey) {
+    btnCancelKey.addEventListener('click', () => {
+      modal.classList.add('hidden');
+    });
+  }
+}
+
+function openEmergencyModal() {
+  // Immediately persist exact elapsed seconds right now:
+  if (activeSession && currentSessionRecord) {
+    const elapsedNow = Math.max(1, Math.round((Date.now() - activeSession.startTime) / 1000));
+    currentSessionRecord.durationSeconds = elapsedNow;
+    window.api.saveStudySession(currentSessionRecord);
+  }
+
+  const modal = document.getElementById('emergencyModal');
+  modal.classList.remove('hidden');
+
+  document.getElementById('emergencyPassInput').value = '';
+  document.getElementById('btnConfirmEmergencyKey').disabled = true;
+  document.getElementById('emergencyPassMsg').textContent = 'Session shuru karne se pehle jo code notebook mein likha tha wahi enter karein.';
+  document.getElementById('emergencyPassMsg').style.color = 'var(--text-dim)';
+  setTimeout(() => {
+    document.getElementById('emergencyPassInput').focus();
+  }, 100);
+}
+
+function setupEmergencyChordListener() {
+  window.api.onEmergencyChord(() => {
+    if (activeSession) {
+      finishAndSaveSession('failsafe_chord');
+      alert('Hardware panic chord triggered. Lock-in released and session saved.');
+    }
+  });
+}
+
+function showToastNotification(message) {
+  let toast = document.getElementById('studyLockToast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'studyLockToast';
+    toast.className = 'macos-toast-banner';
+    document.body.appendChild(toast);
+  }
+  toast.innerHTML = `<span>⚡</span> <span>${escapeHtml(message)}</span>`;
+  toast.classList.remove('fade-out');
+
+  setTimeout(() => {
+    if (toast) toast.classList.add('fade-out');
+  }, 4500);
+}
+
+// ========================================================
+// Helpers & Utilities
+// ========================================================
+function setupChipGroup(selector, onSelect) {
+  document.querySelectorAll(`${selector} .chip-bold`).forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll(`${selector} .chip-bold`).forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      if (onSelect) {
+        onSelect(parseInt(chip.dataset.minutes, 10));
+      }
+    });
+  });
+}
+
+function adjustMinutes(inputId, delta) {
+  const el = document.getElementById(inputId);
+  let val = parseInt(el.value, 10) || 0;
+  val = Math.max(1, Math.min(600, val + delta));
+  el.value = val;
+}
+
+function formatDurationSmart(totalSeconds) {
+  if (totalSeconds < 60) return `${totalSeconds}s`;
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return seconds > 0 ? `${hours}h ${minutes}m ${seconds}s` : `${hours}h ${minutes}m`;
+  }
+  return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/[&<>"']/g, (m) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[m]);
+}

@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StudyLock — Immersion Study & Desk Clock</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="macos-theme">
+  <!-- macOS Unified Header & Segmented Navigation -->
+  <header class="macos-titlebar">
+    <div class="traffic-lights">
+      <button id="btnWinClose" class="traffic-dot dot-close" title="Close Window"></button>
+      <button id="btnWinMin" class="traffic-dot dot-minimize" title="Minimize Window"></button>
+      <button id="btnWinMax" class="traffic-dot dot-maximize" title="Maximize Window"></button>
+    </div>
+    
+    <!-- Central macOS Segmented Navigation Pill -->
+    <nav class="macos-nav-segmented">
+      <button class="nav-segment-btn active" data-tab="tabPlayer">
+        <span class="segment-icon">🎬</span>
+        <span class="segment-label">Study Player</span>
+      </button>
+      <button class="nav-segment-btn" data-tab="tabClock">
+        <span class="segment-icon">⏳</span>
+        <span class="segment-label">Focus Clock</span>
+      </button>
+    </nav>
+
+    <div class="titlebar-right">
+      <span class="failsafe-hint" title="Emergency panic shortcut">Panic: Ctrl+Alt+Shift+F12</span>
+    </div>
+  </header>
+
+  <!-- Main Viewports Container -->
+  <main class="app-viewport">
+    
+    <!-- ==================== PILLAR 1: EXPANSIVE STUDIO DASHBOARD (85-90% SCREEN UTILIZATION) ==================== -->
+    <section id="tabPlayer" class="tab-pane active">
+      <div class="studio-viewport-expansive">
+        <div class="studio-grid-expansive">
+          
+          <!-- LEFT COLUMN (60%): THEATER STAGE & DIRECT WATCH PREVIEW -->
+          <div class="studio-column-stage">
+            <div class="stage-control-panel">
+              <div class="stage-header-row">
+                <div class="stage-title-wrap">
+                  <span class="stage-badge-pill">● DIRECT WATCH ENGINE</span>
+                  <h1 class="stage-heading">Lecture Theater Stage</h1>
+                </div>
+                <div class="stage-guarantee-badge" title="Distraction-free Direct YouTube Stream">
+                  <span class="pulse-dot"></span>
+                  <span>100% Playback Guaranteed</span>
+                </div>
+              </div>
+
+              <!-- Stream URL Input Pill -->
+              <div class="form-group mt-3">
+                <label class="form-label-bold" for="ytUrlInput">YouTube Lecture or Playlist Stream URL</label>
+                <div class="input-pill-wrapper-bold">
+                  <span class="pill-icon-bold">🔗</span>
+                  <input type="text" id="ytUrlInput" placeholder="Paste link: https://www.youtube.com/watch?v=... or youtu.be/..." spellcheck="false" autocomplete="off">
+                  <button id="btnPreviewUrl" class="btn-pill-bold btn-preview-action" title="Preview lecture live in the stage before locking in">▶ Preview Stream</button>
+                  <button id="btnPasteUrl" class="btn-pill-bold btn-paste-action">📋 Paste Link</button>
+                </div>
+                <div id="urlFeedback" class="form-hint-bold">Direct Watch engine runs raw YouTube stream with all recommendations, shorts, and comments stripped.</div>
+              </div>
+            </div>
+
+            <!-- Expansive 16:9 Theater Screen Bezel -->
+            <div class="theater-screen-bezel mt-4">
+              <div class="theater-screen-inner" id="theaterScreenInner">
+                <!-- Idle State Placeholder (shown when no video is loaded) -->
+                <div id="theaterIdleState" class="theater-idle-placeholder">
+                  <div class="theater-glow-icon">🎬</div>
+                  <h3 class="theater-idle-title">Direct Stream Stage Idle</h3>
+                  <p class="theater-idle-sub">Enter or paste any YouTube lecture URL above and click <strong>Preview Stream</strong> to test video and audio instantly right here.</p>
+                  <div class="theater-features-row">
+                    <span class="theater-feature-tag">🛡️ Zero Ads & Distractions</span>
+                    <span class="theater-feature-tag">📺 Direct Watch Engine</span>
+                    <span class="theater-feature-tag">🔒 Fullscreen Immersion</span>
+                  </div>
+                </div>
+
+                <!-- Active Preview Container -->
+                <div id="theaterPreviewContainer" class="theater-preview-container hidden">
+                  <div class="theater-preview-bar">
+                    <div class="preview-status-indicator">
+                      <span class="live-recording-dot"></span>
+                      <span class="preview-mode-title">LIVE DIRECT STREAM PREVIEW</span>
+                    </div>
+                    <button id="btnClosePreview" class="btn-close-theater" title="Close Stage Preview">✕ Close Preview</button>
+                  </div>
+                  <div id="previewWebviewHolder" class="preview-webview-holder">
+                    <!-- Webview injected here dynamically -->
+                  </div>
+                </div>
+              </div>
+
+              <div class="theater-status-footer">
+                <div class="footer-spec-item">
+                  <span class="spec-label">Engine:</span>
+                  <span class="spec-value">Direct Watch Sandboxed Webview</span>
+                </div>
+                <div class="footer-spec-item">
+                  <span class="spec-label">Audio/Video:</span>
+                  <span class="spec-value">Native YouTube Stream (Error 150/152 Immune)</span>
+                </div>
+                <div class="footer-spec-item">
+                  <span class="spec-label">Lock-In Mode:</span>
+                  <span class="spec-value">Kiosk Single-Lecture Isolation</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT COLUMN (40%): BOLD PARAMETER COCKPIT -->
+          <div class="studio-column-cockpit">
+            <div class="cockpit-card">
+              <div class="cockpit-header">
+                <div class="cockpit-header-icon">⚙️</div>
+                <div>
+                  <h2 class="cockpit-title">Session Cockpit</h2>
+                  <p class="cockpit-sub">Set targets and lock-in credentials</p>
+                </div>
+              </div>
+
+              <!-- Subject Tag Chips -->
+              <div class="form-group mt-4">
+                <label class="form-label-bold">Subject Tag</label>
+                <div class="chip-group-bold" id="playerSubjectChips">
+                  <button class="chip-bold active" data-subject="Physics">⚡ Physics</button>
+                  <button class="chip-bold" data-subject="Chemistry">🧪 Chemistry</button>
+                  <button class="chip-bold" data-subject="Maths">📐 Maths</button>
+                  <button class="chip-bold" data-subject="Productivity">🎯 Productivity</button>
+                  <button class="chip-bold" data-subject="Biology">🧬 Biology</button>
+                </div>
+              </div>
+
+              <!-- Topic / Chapter -->
+              <div class="form-group mt-4">
+                <label class="form-label-bold" for="playerTopicInput">Topic / Chapter Name</label>
+                <input type="text" id="playerTopicInput" class="bold-input-standard" placeholder="e.g. Permutations & Combinations Lecture 01" maxlength="60">
+              </div>
+
+              <!-- Duration Selector & Steppers -->
+              <div class="form-group mt-4">
+                <label class="form-label-bold">Target Focus Duration</label>
+                <div class="chip-group-bold" id="playerDurationChips">
+                  <button class="chip-bold" data-minutes="1">1m (Test)</button>
+                  <button class="chip-bold" data-minutes="15">15m</button>
+                  <button class="chip-bold" data-minutes="25">25m</button>
+                  <button class="chip-bold active" data-minutes="45">45m</button>
+                  <button class="chip-bold" data-minutes="60">60m</button>
+                  <button class="chip-bold" data-minutes="90">90m</button>
+                </div>
+
+                <div class="stepper-row-bold mt-3">
+                  <button class="btn-step-bold" id="btnPlayerSub15">-15m</button>
+                  <button class="btn-step-bold" id="btnPlayerSub5">-5m</button>
+                  <div class="stepper-box-bold">
+                    <input type="number" id="playerCustomMinutes" value="45" min="1" max="600">
+                    <span class="stepper-unit-bold">min</span>
+                  </div>
+                  <button class="btn-step-bold" id="btnPlayerAdd5">+5m</button>
+                  <button class="btn-step-bold" id="btnPlayerAdd15">+15m</button>
+                </div>
+              </div>
+
+              <!-- Emergency Unlock Gate -->
+              <div class="form-group mt-4">
+                <label class="form-label-bold">Emergency Unlock Ritual</label>
+                <div class="segmented-pill-selector-bold">
+                  <button class="sub-seg-btn-bold active" id="btnRitualRandom" data-mode="random">🎲 6-Digit Notebook Code</button>
+                  <button class="sub-seg-btn-bold" id="btnRitualCustom" data-mode="custom">🔑 Custom Password</button>
+                </div>
+
+                <!-- Random 6-Digit Code -->
+                <div id="boxRitualRandom" class="ritual-box-bold active mt-3">
+                  <div class="code-card-bold">
+                    <span class="code-label-bold">WRITE THIS IN YOUR NOTEBOOK:</span>
+                    <div class="code-value-bold" id="displayPlayerCode">749 204</div>
+                    <button id="btnPlayerRegenCode" class="btn-code-regen-bold">🔄 New Code</button>
+                  </div>
+                  <p class="ritual-subtext-bold">Write this code on physical paper and keep it in another room. Once locked in, it disappears from screen.</p>
+                </div>
+
+                <!-- Custom Password -->
+                <div id="boxRitualCustom" class="ritual-box-bold mt-3">
+                  <input type="password" id="playerCustomPassword" class="bold-input-standard" placeholder="Enter emergency unlock password..." spellcheck="false" autocomplete="off">
+                </div>
+              </div>
+
+              <!-- Main Command Launch Button -->
+              <button id="btnLaunchPlayer" class="btn-launch-cockpit mt-5">
+                <span class="launch-icon">🔒</span>
+                <span class="launch-label">ENTER FULLSCREEN LECTURE LOCK-IN</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Active Fullscreen YouTube View (Permanent top bar prevents trapping) -->
+      <div id="playerActiveView" class="fullscreen-layer hidden">
+        <!-- Dedicated Permanent Top Bar: ALWAYS visible so exit is NEVER lost -->
+        <div class="player-permanent-bar">
+          <div class="bar-left">
+            <span class="app-micro-badge">⚡ StudyLock</span>
+            <span id="playerHudSubject" class="badge-subject">Physics</span>
+            <span id="playerHudTopic" class="hud-topic-text">Lecture</span>
+          </div>
+
+          <div class="bar-center">
+            <span class="hud-status-badge">● DIRECT STREAM ACTIVE</span>
+            <span class="hud-time-pill" id="playerHudCountdown">45:00</span>
+            <span class="hud-elapsed-pill" id="playerHudElapsed">(00:00 elapsed)</span>
+          </div>
+
+          <div class="bar-right">
+            <button id="btnParentProofToggle" class="btn-hud-proof" title="Show 85% Padhai Proof Screen to Parents (Shortcut: Tab)">👨‍👩‍👦 Padhai Proof (Tab)</button>
+            <button id="btnPlayerEmergency" class="btn-hud-danger-fixed">🛡️ Emergency Exit</button>
+          </div>
+        </div>
+
+        <div class="video-container" id="videoFrameWrapper">
+          <!-- Dynamic Direct Watch Webview Embed -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== PILLAR 2: FOCUS CLOCK (DUAL-MODE: STRICT LOCK-IN & NORMAL FREE) ==================== -->
+    <section id="tabClock" class="tab-pane">
+      <!-- Setup View -->
+      <div id="clockSetupView" class="pane-content-expansive">
+        <div class="cockpit-card clock-setup-card-expansive">
+          <div class="card-hero-header">
+            <div class="hero-badge-icon">⏳</div>
+            <h2>Universal Focus Clock</h2>
+            <p class="hero-desc">Choose between a Strict Fullscreen Lockdown or a Flexible Normal Desk Timer with PC app switching.</p>
+          </div>
+
+          <!-- Dual Mode Selector: Strict Lock vs Normal Free -->
+          <div class="clock-mode-selector-wrap mt-5">
+            <button class="clock-mode-tab-btn active" id="btnClockModeLocked" data-mode="locked">
+              <span class="mode-tab-icon">🔒</span>
+              <span class="mode-tab-label">Strict Lock-In Mode</span>
+            </button>
+            <button class="clock-mode-tab-btn" id="btnClockModeFree" data-mode="free">
+              <span class="mode-tab-icon">🔓</span>
+              <span class="mode-tab-label">Normal Free Mode</span>
+            </button>
+          </div>
+          <div id="clockModeDescription" class="clock-mode-desc mt-2">
+            🔒 <strong>Strict Kiosk Mode:</strong> Fullscreen lock, Alt+Tab blocked, 6-digit notebook code required to exit early.
+          </div>
+
+          <!-- Subject Tags -->
+          <div class="form-group mt-5">
+            <label class="form-label-bold">Subject Tag</label>
+            <div class="chip-group-bold" id="clockSubjectChips">
+              <button class="chip-bold active" data-subject="Physics">⚡ Physics</button>
+              <button class="chip-bold" data-subject="Chemistry">🧪 Chemistry</button>
+              <button class="chip-bold" data-subject="Maths">📐 Maths</button>
+              <button class="chip-bold" data-subject="Productivity">🎯 Productivity</button>
+              <button class="chip-bold" data-subject="Biology">🧬 Biology</button>
+            </div>
+          </div>
+
+          <!-- Topic Name -->
+          <div class="form-group mt-4">
+            <label class="form-label-bold" for="clockTopicInput">Topic / Objective</label>
+            <input type="text" id="clockTopicInput" class="bold-input-standard" placeholder="e.g. HC Verma Problems 1-30 or Paper Analysis" maxlength="60">
+          </div>
+
+          <!-- Duration Stepper -->
+          <div class="form-group mt-4">
+            <label class="form-label-bold">Target Focus Duration</label>
+            <div class="chip-group-bold" id="clockDurationChips">
+              <button class="chip-bold" data-minutes="1">1m (Test)</button>
+              <button class="chip-bold" data-minutes="15">15m</button>
+              <button class="chip-bold" data-minutes="25">25m</button>
+              <button class="chip-bold active" data-minutes="45">45m</button>
+              <button class="chip-bold" data-minutes="60">60m</button>
+              <button class="chip-bold" data-minutes="90">90m</button>
+            </div>
+
+            <div class="stepper-row-bold mt-3">
+              <button class="btn-step-bold" id="btnClockSub15">-15m</button>
+              <button class="btn-step-bold" id="btnClockSub5">-5m</button>
+              <div class="stepper-box-bold">
+                <input type="number" id="clockCustomMinutes" value="45" min="1" max="600">
+                <span class="stepper-unit-bold">min</span>
+              </div>
+              <button class="btn-step-bold" id="btnClockAdd5">+5m</button>
+              <button class="btn-step-bold" id="btnClockAdd15">+15m</button>
+            </div>
+          </div>
+
+          <!-- Unlock Gate Selection (Strict Lock-In Mode Only) -->
+          <div id="clockEmergencyRitualGroup" class="form-group mt-4">
+            <label class="form-label-bold">Emergency Unlock Ritual</label>
+            <div class="segmented-pill-selector-bold">
+              <button class="sub-seg-btn-bold active" id="btnClockRitualRandom" data-mode="random">🎲 6-Digit Notebook Code</button>
+              <button class="sub-seg-btn-bold" id="btnClockRitualCustom" data-mode="custom">🔑 Custom Password</button>
+            </div>
+
+            <div id="boxClockRitualRandom" class="ritual-box-bold active mt-3">
+              <div class="code-card-bold">
+                <span class="code-label-bold">WRITE THIS IN YOUR NOTEBOOK:</span>
+                <div class="code-value-bold" id="displayClockCode">832 915</div>
+                <button id="btnClockRegenCode" class="btn-code-regen-bold">🔄 New Code</button>
+              </div>
+              <p class="ritual-subtext-bold">Write this code on paper and keep it in another room. Once locked in, it disappears from your screen.</p>
+            </div>
+
+            <div id="boxClockRitualCustom" class="ritual-box-bold mt-3">
+              <input type="password" id="clockCustomPassword" class="bold-input-standard" placeholder="Enter emergency password..." spellcheck="false" autocomplete="off">
+            </div>
+          </div>
+
+          <button id="btnLaunchClock" class="btn-launch-cockpit mt-5">
+            <span class="launch-icon">🚀</span>
+            <span id="lblLaunchClock" class="launch-label">LAUNCH STRICT LOCKED CLOCK</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Active Colossal Desk Clock (Covers 80% to 90% of screen) -->
+      <div id="clockActiveView" class="fullscreen-colossal-clock hidden">
+        <!-- Top Permanent Status & Controls Bar -->
+        <div class="clock-permanent-topbar">
+          <div class="colossal-clock-meta">
+            <span id="colossalModeBadge" class="badge-mode-pill">🔒 STRICT LOCK-IN</span>
+            <span id="colossalSubject" class="badge-subject-lg">Physics</span>
+            <span id="colossalTopic" class="colossal-topic-text">Rotational Dynamics</span>
+          </div>
+          
+          <div class="bar-right">
+            <!-- Strict Mode Controls -->
+            <div id="clockStrictControls" class="clock-controls-cluster">
+              <button id="btnClockProofToggle" class="btn-hud-proof" title="Show 85% Padhai Proof Screen to Parents (Shortcut: Tab)">👨‍👩‍👦 Padhai Proof (Tab)</button>
+              <button id="btnClockEmergency" class="btn-hud-danger-fixed">🛡️ Emergency Exit</button>
+            </div>
+
+            <!-- Normal Free Mode Controls -->
+            <div id="clockFreeControls" class="clock-controls-cluster hidden">
+              <button id="btnClockToggleFloat" class="btn-hud-action" title="Shrink into compact floating mini clock in screen corner">📌 Float Mini-Clock</button>
+              <button id="btnClockFreePause" class="btn-hud-action">⏸️ Pause</button>
+              <button id="btnClockFreeFinish" class="btn-hud-success">⏹️ Finish & Log</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="colossal-clock-container" id="colossalClockMainArea">
+          <!-- Colossal 80-85% Screen Width Digits Cluster -->
+          <div class="colossal-flip-grid">
+            <div class="flip-unit">
+              <div class="flip-card-huge">
+                <span id="flipHours" class="flip-num-huge">00</span>
+                <div class="flip-split-line"></div>
+              </div>
+              <span class="flip-unit-label">HOURS</span>
+            </div>
+
+            <div class="flip-colon-huge">:</div>
+
+            <div class="flip-unit">
+              <div class="flip-card-huge">
+                <span id="flipMinutes" class="flip-num-huge">45</span>
+                <div class="flip-split-line"></div>
+              </div>
+              <span class="flip-unit-label">MINUTES</span>
+            </div>
+
+            <div class="flip-colon-huge">:</div>
+
+            <div class="flip-unit">
+              <div class="flip-card-huge">
+                <span id="flipSeconds" class="flip-num-huge">00</span>
+                <div class="flip-split-line"></div>
+              </div>
+              <span class="flip-unit-label">SECONDS</span>
+            </div>
+          </div>
+
+          <!-- Progress Bar & Details -->
+          <div class="colossal-progress-bar-wrapper">
+            <div class="colossal-progress-track">
+              <div id="colossalProgressFill" class="colossal-progress-fill" style="width: 0%;"></div>
+            </div>
+            <div class="colossal-progress-stats">
+              <span id="colossalElapsedText">00:00 elapsed</span>
+              <span id="colossalTargetText">Target: 45m</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Compact Floating Mini-Widget View (Shown when floating mini mode is active) -->
+        <div id="clockMiniFloatingView" class="clock-mini-floating-view hidden">
+          <div class="mini-float-header">
+            <span id="miniFloatSubject" class="mini-badge-subject">Physics</span>
+            <span id="miniFloatTopic" class="mini-topic-text">Topic</span>
+            <button id="btnExpandMiniClock" class="btn-mini-expand" title="Expand back to Full Window">⛶</button>
+          </div>
+          <div class="mini-float-body">
+            <span id="miniFloatDigits" class="mini-float-time">45:00</span>
+            <div class="mini-float-actions">
+              <button id="btnMiniFloatPause" class="btn-mini-action">⏸️</button>
+              <button id="btnMiniFloatFinish" class="btn-mini-finish">⏹️</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==================== PARENT PROOF OVERLAY (85-90% SCREEN COVERAGE IN HINGLISH) ==================== -->
+  <div id="parentProofModal" class="parent-proof-overlay hidden">
+    <div class="parent-proof-card">
+      
+      <!-- Top Proof Badge & Title -->
+      <div class="parent-proof-header">
+        <div class="parent-proof-badge">
+          <span class="pulse-dot-large"></span>
+          <span>100% VERIFIED STUDY LOCK ACTIVE</span>
+        </div>
+        <h1 class="parent-proof-headline">AAPKA BETA PADHAI KAR RAHA HAI</h1>
+        <p class="parent-proof-subheadline">Is samay laptop par lecture chalu hai aur baaki sab band hai</p>
+      </div>
+
+      <!-- Big Clean Subject & Topic Box -->
+      <div class="parent-subject-card mt-5">
+        <div class="parent-subject-row">
+          <div class="parent-subject-item">
+            <span class="parent-label">SUBJECT:</span>
+            <span id="parentProofSubject" class="parent-val-subject">MATHS</span>
+          </div>
+          <div class="parent-subject-item">
+            <span class="parent-label">CHAPTER / TOPIC:</span>
+            <span id="parentProofTopic" class="parent-val-topic">Permutations & Combinations Lecture 01</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Time Counters Grid -->
+      <div class="parent-time-grid mt-4">
+        <div class="parent-time-box">
+          <span class="parent-time-label">⏱️ PADHAI KARTE HUE</span>
+          <div id="parentProofElapsed" class="parent-time-val">22 Minute</div>
+          <span class="parent-time-sub">Continuous study time</span>
+        </div>
+
+        <div class="parent-time-box highlight-time">
+          <span class="parent-time-label">⏳ BACHA HUA TIME</span>
+          <div id="parentProofRemaining" class="parent-time-val">23 Minute</div>
+          <span id="parentProofTarget" class="parent-time-sub">Target: 45 Minute</span>
+        </div>
+      </div>
+
+      <!-- Progress Bar -->
+      <div class="parent-progress-wrap mt-4">
+        <div class="parent-progress-track">
+          <div id="parentProofProgressBar" class="parent-progress-bar" style="width: 48%;"></div>
+        </div>
+      </div>
+
+      <!-- Dynamic Personal Message to Parents -->
+      <div class="parent-message-box mt-5">
+        <div class="parent-message-title">
+          <span>🙏 Uncle / Aunty ji ke liye Sandesh:</span>
+        </div>
+        <div id="parentProofDynamicMessage" class="parent-message-text">
+          "Aapke bete ne 20+ minute bina kisi rukawat ke padhai kar li hai. Koi game ya timepass nahi chal raha hai, poora dhyan lecture aur notes par hai. Aap bilkul chinta mat kijiye."
+        </div>
+      </div>
+
+      <!-- Dismiss Instructions Footer -->
+      <div class="parent-proof-footer mt-5">
+        <button id="btnCloseParentProof" class="btn-parent-resume">
+          <span>▶ Wapas Lecture par jayein</span>
+          <span class="key-pill">Tab</span>
+        </button>
+        <span class="parent-dismiss-note">(Aap keyboard par <strong>Tab</strong> dabakar bhi screen hata sakte hain)</span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ==================== TIMER EXPIRY MODAL (CONTINUE OR FINISH) ==================== -->
+  <div id="timerExpiryModal" class="modal-overlay hidden">
+    <div class="macos-dialog-card">
+      <div class="dialog-icon">⏱️</div>
+      <h2>Focus Target Completed!</h2>
+      <p class="dialog-desc">You've reached your scheduled focus duration. Would you like to extend your session or finish and log your deep work?</p>
+
+      <div class="dialog-stats-pill">
+        <span id="expirySubject" class="badge-subject">Physics</span>
+        <span id="expiryDuration" class="dialog-stat-duration">45m 00s Completed</span>
+      </div>
+
+      <div class="dialog-actions-row mt-6">
+        <button id="btnExpiryExtend" class="btn-dialog-primary">➕ Continue (+15m)</button>
+        <button id="btnExpiryFinish" class="btn-dialog-secondary">⏹️ Finish & Log Session</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== EMERGENCY EXIT MODAL (STRICT 6-DIGIT CODE / KEY ONLY) ==================== -->
+  <div id="emergencyModal" class="modal-overlay hidden">
+    <div class="macos-dialog-card">
+      <div class="dialog-icon-danger">🛡️</div>
+      <h2>Emergency Unlock Gate</h2>
+      <p class="dialog-desc">Lock-in session beech mein rokne ke liye apne notebook se 6-digit code ya master password darj karein.</p>
+
+      <div class="form-group mt-5 text-left">
+        <label class="form-label-bold" for="emergencyPassInput">Session Password ya 6-Digit Notebook Code</label>
+        <input type="password" id="emergencyPassInput" class="bold-input-standard" placeholder="Enter code from your notebook..." spellcheck="false" autocomplete="off">
+        <div id="emergencyPassMsg" class="form-hint-bold">Session shuru karne se pehle jo code notebook mein likha tha wahi enter karein.</div>
+      </div>
+
+      <div class="dialog-actions-row mt-6">
+        <button id="btnCancelEmergencyKey" class="btn-dialog-cancel">Return to Study</button>
+        <button id="btnConfirmEmergencyKey" class="btn-dialog-danger" disabled>Unlock Session</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

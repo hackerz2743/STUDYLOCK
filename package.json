@@ -1,0 +1,57 @@
+{
+  "name": "studylock",
+  "version": "1.0.0",
+  "productName": "StudyLock",
+  "description": "Distraction-Free Immersion Study & Desk Clock App",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --win portable nsis"
+  },
+  "keywords": ["study", "focus", "desk-clock", "immersion", "youtube-player", "jee", "neet"],
+  "author": "Antigravity",
+  "license": "MIT",
+  "build": {
+    "appId": "com.studylock.app",
+    "productName": "StudyLock",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "icon": "src/assets/icon.ico",
+      "target": [
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        },
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "StudyLock",
+      "artifactName": "StudyLock-Installer.exe"
+    },
+    "portable": {
+      "artifactName": "StudyLock.exe",
+      "requestExecutionLevel": "user"
+    }
+  },
+  "devDependencies": {
+    "electron": "^45.3.4",
+    "electron-builder": "^26.18.0"
+  }
+}

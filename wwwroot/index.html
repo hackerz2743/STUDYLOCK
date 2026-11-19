@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="night">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StudyLock - Distraction-Free Immersion Study & Desk Clock</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="theme-night">
+  <!-- Starfield Canvas for subtle night aesthetic without blur overhead -->
+  <canvas id="stars-canvas" class="stars-canvas"></canvas>
+
+  <!-- App Titlebar & Navigation -->
+  <header class="app-header">
+    <div class="drag-region" id="drag-region">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            <circle cx="12" cy="16" r="1.5"></circle>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">StudyLock</span>
+          <span class="brand-sub">IMMERSION VAULT</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Navigation Tabs -->
+    <nav class="nav-tabs">
+      <button class="nav-tab active" data-tab="player" id="tab-btn-player">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="5 3 19 12 5 21 5 3"></polygon>
+        </svg>
+        <span>Study Player</span>
+      </button>
+      <button class="nav-tab" data-tab="timer" id="tab-btn-timer">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+        <span>Focus Timer</span>
+      </button>
+      <button class="nav-tab" data-tab="analysis" id="tab-btn-analysis">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"></line>
+          <line x1="12" y1="20" x2="12" y2="4"></line>
+          <line x1="6" y1="20" x2="6" y2="14"></line>
+        </svg>
+        <span>Study Analysis</span>
+      </button>
+    </nav>
+
+    <!-- Header Actions & Live Pulsing Session Pill -->
+    <div class="header-actions">
+      <!-- Live Session Pulsing Pill (visible when a session is active in normal mode / background) -->
+      <div id="live-session-pill" class="live-session-pill hidden">
+        <div class="pulse-dot"></div>
+        <span id="pill-subject-badge" class="subject-badge badge-physics">Physics</span>
+        <span id="pill-timer-text" class="pill-timer">00:00</span>
+        <div class="pill-buttons">
+          <button id="pill-view-btn" class="pill-btn" title="View Clock">👁️ Clock</button>
+          <button id="pill-finish-btn" class="pill-btn danger" title="Finish & Save">⏹️ Finish</button>
+        </div>
+      </div>
+
+      <!-- Theme Switcher -->
+      <button id="theme-toggle-btn" class="icon-btn" title="Toggle Night / Day Mode">
+        <svg id="moon-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+        <svg id="sun-icon" class="hidden" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+      </button>
+
+      <!-- Settings Button -->
+      <button id="settings-open-btn" class="icon-btn" title="Settings & Security Vault">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+
+      <!-- Window Control Buttons -->
+      <div class="window-controls">
+        <button id="win-min-btn" class="win-btn" title="Minimize">
+          <svg width="10" height="1" viewBox="0 0 10 1"><rect width="10" height="1" fill="currentColor"/></svg>
+        </button>
+        <button id="win-max-btn" class="win-btn" title="Maximize">
+          <svg width="10" height="10" viewBox="0 0 10 10"><rect width="9" height="9" x="0.5" y="0.5" fill="none" stroke="currentColor"/></svg>
+        </button>
+        <button id="win-close-btn" class="win-btn win-close" title="Close">
+          <svg width="10" height="10" viewBox="0 0 10 10">
+            <line x1="0" y1="0" x2="10" y2="10" stroke="currentColor" stroke-width="1.2"/>
+            <line x1="10" y1="0" x2="0" y2="10" stroke="currentColor" stroke-width="1.2"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main View Container -->
+  <main class="main-content">
+    
+    <!-- ============================================== -->
+    <!-- PILLAR 1: STUDY PLAYER (YouTube Immersion) -->
+    <!-- ============================================== -->
+    <section id="view-player" class="tab-view active">
+      <div class="pillar-container">
+        <div class="pillar-header">
+          <div class="badge-tag">PILLAR 1</div>
+          <h1>Study Player Immersion</h1>
+          <p class="subtitle">Stream YouTube lectures stripped of comments, recommendations, sidebar rabbit holes, and Shorts algorithms.</p>
+        </div>
+
+        <div class="setup-grid">
+          <!-- Left: Lecture Configuration Card -->
+          <div class="card setup-card">
+            <div class="card-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+              </svg>
+              <span>1. Enter YouTube Video or Playlist URL</span>
+            </div>
+
+            <div class="input-group">
+              <div class="url-input-wrapper">
+                <input type="text" id="yt-url-input" class="text-input" placeholder="Paste link (e.g., https://youtu.be/... or youtube.com/playlist?list=...)" autocomplete="off">
+                <button id="paste-yt-btn" class="btn-subtle" title="Paste from clipboard">📋 Paste</button>
+              </div>
+              <div id="yt-url-status" class="input-hint">Enter any lecture link, playlist, or JEE/NEET video</div>
+            </div>
+
+            <div class="card-title mt-4">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+              </svg>
+              <span>2. Select Subject & Topic</span>
+            </div>
+
+            <!-- Subject Chips -->
+            <div class="subject-chips" id="player-subject-chips">
+              <button class="chip active" data-subject="Physics">⚛️ Physics</button>
+              <button class="chip" data-subject="Chemistry">🧪 Chemistry</button>
+              <button class="chip" data-subject="Maths">📐 Maths</button>
+              <button class="chip" data-subject="Productivity">⚡ Productivity</button>
+            </div>
+
+            <div class="input-group mt-3">
+              <label for="player-topic-input">Topic / Chapter Name</label>
+              <input type="text" id="player-topic-input" class="text-input" placeholder="e.g. Rotational Motion Lecture 03 or Organic Reactions" value="Rotational Motion Lecture 03">
+            </div>
+
+            <!-- Duration Controls -->
+            <div class="card-title mt-4">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <span>3. Target Study Duration</span>
+            </div>
+
+            <div class="preset-pills" id="player-duration-presets">
+              <button class="preset-pill" data-minutes="15">15m</button>
+              <button class="preset-pill" data-minutes="25">25m</button>
+              <button class="preset-pill active" data-minutes="45">45m</button>
+              <button class="preset-pill" data-minutes="60">60m</button>
+              <button class="preset-pill" data-minutes="90">90m</button>
+              <button class="preset-pill" data-minutes="120">120m</button>
+            </div>
+
+            <!-- Time Stepper -->
+            <div class="time-stepper">
+              <button class="stepper-btn" id="player-sub-15">-15m</button>
+              <button class="stepper-btn" id="player-sub-5">-5m</button>
+              <div class="stepper-display">
+                <input type="number" id="player-custom-minutes" value="45" min="1" max="600">
+                <span>minutes</span>
+              </div>
+              <button class="stepper-btn" id="player-add-5">+5m</button>
+              <button class="stepper-btn" id="player-add-15">+15m</button>
+            </div>
+
+            <!-- Start Lock-In CTA -->
+            <button id="launch-player-btn" class="btn-primary mt-4">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+              <span>Engage Lecture Lock-In 🚀</span>
+            </button>
+          </div>
+
+          <!-- Right: Immersion Preview Card & Rules -->
+          <div class="card preview-card">
+            <h3>🛡️ Zero-Distraction Guarantee</h3>
+            <ul class="feature-checklist">
+              <li>
+                <div class="check-icon">✓</div>
+                <div><strong>No Home Feed & No Recommendations:</strong> The YouTube algorithm cannot push side recommendations or videos to bait your attention.</div>
+              </li>
+              <li>
+                <div class="check-icon">✓</div>
+                <div><strong>No Comments Section:</strong> Never waste 20 minutes reading YouTube arguments or replies.</div>
+              </li>
+              <li>
+                <div class="check-icon">✓</div>
+                <div><strong>No Shorts Shelf:</strong> Infinite short-form dopamine reels are completely barred.</div>
+              </li>
+              <li>
+                <div class="check-icon">✓</div>
+                <div><strong>Floating Floating Clock:</strong> A non-intrusive countdown ring hovers gracefully over the player.</div>
+              </li>
+              <li>
+                <div class="check-icon">✓</div>
+                <div><strong>Precision Logging:</strong> Second-by-second analytics saved automatically.</div>
+              </li>
+            </ul>
+
+            <!-- Video Preview Box -->
+            <div class="preview-box" id="yt-preview-box">
+              <div class="preview-placeholder">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                <span>Paste a lecture link above to preview video</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- PILLAR 2: FOCUS TIMER (Offline Notebook Desk Clock) -->
+    <!-- ============================================== -->
+    <section id="view-timer" class="tab-view">
+      <div class="pillar-container">
+        <div class="pillar-header">
+          <div class="badge-tag">PILLAR 2</div>
+          <h1>Focus Timer & Desk Flip Clock</h1>
+          <p class="subtitle">For offline study sessions: solving HC Verma, NCERT problem sheets, reading textbooks, or revision.</p>
+        </div>
+
+        <div class="setup-grid">
+          <!-- Left: Configuration Form -->
+          <div class="card setup-card">
+            <div class="card-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+              </svg>
+              <span>1. Subject & Offline Task</span>
+            </div>
+
+            <!-- Subject Chips -->
+            <div class="subject-chips" id="timer-subject-chips">
+              <button class="chip active" data-subject="Physics">⚛️ Physics</button>
+              <button class="chip" data-subject="Chemistry">🧪 Chemistry</button>
+              <button class="chip" data-subject="Maths">📐 Maths</button>
+              <button class="chip" data-subject="Productivity">⚡ Productivity</button>
+            </div>
+
+            <div class="input-group mt-3">
+              <label for="timer-topic-input">Topic / Task Details</label>
+              <input type="text" id="timer-topic-input" class="text-input" placeholder="e.g. HC Verma Problem Solving Chapter 5" value="HC Verma Problem Solving Chapter 5">
+            </div>
+
+            <!-- Duration Selector -->
+            <div class="card-title mt-4">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <span>2. Target Study Duration</span>
+            </div>
+
+            <div class="preset-pills" id="timer-duration-presets">
+              <button class="preset-pill" data-minutes="15">15m</button>
+              <button class="preset-pill active" data-minutes="25">25m</button>
+              <button class="preset-pill" data-minutes="45">45m</button>
+              <button class="preset-pill" data-minutes="60">60m</button>
+              <button class="preset-pill" data-minutes="90">90m</button>
+              <button class="preset-pill" data-minutes="120">120m</button>
+            </div>
+
+            <!-- Time Stepper -->
+            <div class="time-stepper">
+              <button class="stepper-btn" id="timer-sub-15">-15m</button>
+              <button class="stepper-btn" id="timer-sub-5">-5m</button>
+              <div class="stepper-display">
+                <input type="number" id="timer-custom-minutes" value="25" min="1" max="600">
+                <span>minutes</span>
+              </div>
+              <button class="stepper-btn" id="timer-add-5">+5m</button>
+              <button class="stepper-btn" id="timer-add-15">+15m</button>
+            </div>
+
+            <!-- Timer Mode Selector Cards -->
+            <div class="card-title mt-4">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+              <span>3. Choose Immersion Mode</span>
+            </div>
+
+            <div class="mode-selection-cards">
+              <!-- Normal Timer Card -->
+              <div class="mode-card active" data-mode="normal" id="mode-card-normal">
+                <div class="mode-badge normal">🕒 Normal Mode</div>
+                <div class="mode-name">Aesthetic Desk Clock</div>
+                <div class="mode-desc">Full-screen aesthetic flip desk clock. Allows "Keep in Background" so you can freely use PDF readers, calculators, and notes. Shows live top-bar pill.</div>
+              </div>
+
+              <!-- Hardcore Lock-In Card -->
+              <div class="mode-card" data-mode="lockin" id="mode-card-lockin">
+                <div class="mode-badge lockin">🔒 Hardcore Lock-In</div>
+                <div class="mode-name">Physical Desk Clock Lockdown</div>
+                <div class="mode-desc">Locked full-screen. Blocks Alt+Tab, Win Key, Ctrl+Esc, and Alt+F4 via Windows keyboard hook. Turns your laptop into a dedicated physical desk clock.</div>
+              </div>
+            </div>
+
+            <!-- Launch Button -->
+            <button id="launch-timer-btn" class="btn-primary mt-4">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+              <span>Start Desk Clock Session 🔥</span>
+            </button>
+          </div>
+
+          <!-- Right: Clock Preview & Audio Synthesis Settings -->
+          <div class="card preview-card">
+            <h3>🕰️ Flip Clock Live Preview</h3>
+            
+            <div class="clock-mini-preview">
+              <div class="mini-digits">
+                <div class="mini-card">25</div>
+                <span class="mini-colon">:</span>
+                <div class="mini-card">00</div>
+              </div>
+              <div class="mini-label">Physics • HC Verma Problem Solving Chapter 5</div>
+            </div>
+
+            <div class="card-title mt-4">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+              </svg>
+              <span>Ambient Sound & Ticking</span>
+            </div>
+            <p class="small-text">Zero external files required. Synthesized directly using Web Audio API.</p>
+
+            <div class="sound-options">
+              <button class="sound-chip active" data-sound="none">🔇 Silent</button>
+              <button class="sound-chip" data-sound="tick">⏱️ Desk Tick</button>
+              <button class="sound-chip" data-sound="rain">🌧️ Study Rain</button>
+              <button class="sound-chip" data-sound="brown">🌊 Brown Noise</button>
+            </div>
+
+            <div class="failsafe-note mt-4">
+              <strong>Emergency Hard Failsafe:</strong>
+              <p>Press <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>F12</kbd> anytime to instantly unlock the system, unhook keyboard shortcuts, and safely record your study session.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- PILLAR 3: STUDY ANALYSIS (Analytics Vault) -->
+    <!-- ============================================== -->
+    <section id="view-analysis" class="tab-view">
+      <div class="pillar-container">
+        
+        <!-- Live In-Progress Banner (Shown if a session is ticking) -->
+        <div id="analysis-live-banner" class="analysis-live-banner hidden">
+          <div class="banner-left">
+            <div class="pulse-dot"></div>
+            <div class="banner-text">
+              <span class="banner-title">⏱️ Session In Progress</span>
+              <span id="banner-session-details">Studying Physics • 30s elapsed</span>
+            </div>
+          </div>
+          <div class="banner-right">
+            <button id="banner-open-clock-btn" class="btn-subtle">👁️ Open Clock</button>
+            <button id="banner-finish-btn" class="btn-primary-small">⏹️ Finish & Save to Vault</button>
+          </div>
+        </div>
+
+        <div class="pillar-header">
+          <div class="badge-tag">PILLAR 3</div>
+          <h1>Study Analytics Vault</h1>
+          <p class="subtitle">Second-by-second precision tracker. Every single second studied is permanently logged and analyzed.</p>
+        </div>
+
+        <!-- Top Metrics KPI Cards -->
+        <div class="metrics-grid">
+          <!-- Card 1: Today -->
+          <div class="metric-card">
+            <div class="metric-icon today">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+            </div>
+            <div class="metric-content">
+              <div class="metric-label">TODAY'S FOCUS</div>
+              <div class="metric-value" id="kpi-today">0s</div>
+              <div class="metric-sub" id="kpi-today-sessions">0 sessions logged</div>
+            </div>
+          </div>
+
+          <!-- Card 2: This Week -->
+          <div class="metric-card">
+            <div class="metric-icon week">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+            </div>
+            <div class="metric-content">
+              <div class="metric-label">THIS WEEK</div>
+              <div class="metric-value" id="kpi-week">0s</div>
+              <div class="metric-sub">Mon – Sun total</div>
+            </div>
+          </div>
+
+          <!-- Card 3: All-Time -->
+          <div class="metric-card">
+            <div class="metric-icon lifetime">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+              </svg>
+            </div>
+            <div class="metric-content">
+              <div class="metric-label">ALL-TIME FOCUS</div>
+              <div class="metric-value" id="kpi-alltime">0s</div>
+              <div class="metric-sub">Lifetime duration</div>
+            </div>
+          </div>
+
+          <!-- Card 4: Daily Streak -->
+          <div class="metric-card">
+            <div class="metric-icon streak">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+              </svg>
+            </div>
+            <div class="metric-content">
+              <div class="metric-label">DAILY STREAK</div>
+              <div class="metric-value" id="kpi-streak">0 Days</div>
+              <div class="metric-sub">Consecutive study days</div>
+            </div>
+          </div>
+
+          <!-- Card 5: Total Sessions -->
+          <div class="metric-card">
+            <div class="metric-icon sessions">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+            </div>
+            <div class="metric-content">
+              <div class="metric-label">TOTAL SESSIONS</div>
+              <div class="metric-value" id="kpi-total-sessions">0</div>
+              <div class="metric-sub">All logged sessions</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="charts-grid mt-4">
+          <!-- Subject Distribution Donut Chart -->
+          <div class="card chart-card">
+            <div class="card-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
+                <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
+              </svg>
+              <span>Subject Focus Distribution</span>
+            </div>
+            
+            <div class="donut-chart-container">
+              <div class="donut-svg-wrapper">
+                <svg id="subject-donut-svg" viewBox="0 0 100 100" class="donut-svg">
+                  <!-- Segments rendered via JS -->
+                  <circle cx="50" cy="50" r="38" class="donut-bg-ring"></circle>
+                </svg>
+                <div class="donut-center-label">
+                  <div class="donut-center-value" id="donut-total-hours">0h</div>
+                  <div class="donut-center-sub">Total Studied</div>
+                </div>
+              </div>
+
+              <!-- Subject Breakdown Bars & Exact Times -->
+              <div class="subject-bars" id="subject-bars-list">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Weekly 7-Day Histogram Capsules -->
+          <div class="card chart-card">
+            <div class="card-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="20" x2="18" y2="10"></line>
+                <line x1="12" y1="20" x2="12" y2="4"></line>
+                <line x1="6" y1="20" x2="6" y2="14"></line>
+              </svg>
+              <span>Weekly 7-Day Focus Histogram (Mon – Sun)</span>
+            </div>
+            
+            <div class="histogram-container" id="weekly-histogram">
+              <!-- Dynamically populated 7 capsule bars -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Completed Sessions Vault Table -->
+        <div class="card vault-card mt-4">
+          <div class="vault-header">
+            <div class="vault-title-group">
+              <div class="card-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="3" y1="9" x2="21" y2="9"></line>
+                  <line x1="9" y1="21" x2="9" y2="9"></line>
+                </svg>
+                <span>Completed Sessions Vault</span>
+              </div>
+              <span class="vault-count-badge" id="vault-count">0 sessions</span>
+            </div>
+
+            <div class="vault-toolbar">
+              <div class="search-input-wrapper">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input type="text" id="vault-search-input" placeholder="Search topic or subject..." class="vault-search">
+              </div>
+
+              <!-- Subject Filter Dropdown -->
+              <select id="vault-filter-subject" class="select-dropdown">
+                <option value="ALL">All Subjects</option>
+                <option value="Physics">Physics</option>
+                <option value="Chemistry">Chemistry</option>
+                <option value="Maths">Maths</option>
+                <option value="Productivity">Productivity</option>
+              </select>
+
+              <button id="vault-export-btn" class="btn-subtle" title="Export study_data.json backup">💾 Export JSON</button>
+            </div>
+          </div>
+
+          <!-- Table Container -->
+          <div class="table-container">
+            <table class="vault-table">
+              <thead>
+                <tr>
+                  <th>Subject</th>
+                  <th>Topic / Task Details</th>
+                  <th>Mode</th>
+                  <th>Exact Duration</th>
+                  <th>Date & Time</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="vault-table-body">
+                <!-- Dynamically populated rows -->
+              </tbody>
+            </table>
+            <div id="vault-empty-state" class="empty-state">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="1.5">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <h4>No Study Sessions Yet</h4>
+              <p>Launch your first Study Player or Focus Timer session above to record your focus second-by-second.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============================================== -->
+  <!-- FULLSCREEN LAYER: STUDY PLAYER IMMERSION -->
+  <!-- ============================================== -->
+  <div id="player-immersion-layer" class="fullscreen-layer hidden">
+    <!-- Top Floating Toolbar -->
+    <div class="player-topbar">
+      <div class="player-meta">
+        <span id="player-hud-subject" class="subject-badge badge-physics">Physics</span>
+        <span id="player-hud-topic" class="player-hud-topic">Rotational Motion Lecture 03</span>
+        <span class="lock-indicator-badge">🔒 IMMERSION ACTIVE</span>
+      </div>
+      <div class="player-actions">
+        <button id="player-finish-btn" class="btn-primary-small">⏹️ Finish & Log Session</button>
+        <button id="player-unlock-btn" class="btn-subtle danger">🔓 Emergency Unlock</button>
+      </div>
+    </div>
+
+    <!-- YouTube IFrame Container -->
+    <div class="yt-iframe-container" id="yt-iframe-container">
+      <!-- Injected iframe -->
+    </div>
+
+    <!-- Floating Minimal Countdown Clock Widget (draggable / dockable) -->
+    <div id="floating-clock-widget" class="floating-clock-widget">
+      <div class="clock-ring-wrapper">
+        <svg class="clock-ring-svg" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="44" class="ring-bg"></circle>
+          <circle id="floating-ring-progress" cx="50" cy="50" r="44" class="ring-fill"></circle>
+        </svg>
+        <div class="clock-ring-content">
+          <span id="floating-clock-remaining" class="floating-remaining-text">45:00</span>
+          <span class="floating-sub-text">REMAINING</span>
+        </div>
+      </div>
+      <div class="floating-clock-details">
+        <div class="floating-elapsed-text" id="floating-clock-elapsed">00:00 elapsed</div>
+        <div class="floating-btn-row">
+          <button id="floating-finish-btn" class="floating-action-btn" title="Finish & Save">⏹️</button>
+          <button id="floating-unlock-btn" class="floating-action-btn danger" title="Emergency Exit">🔓</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- FULLSCREEN LAYER: AESTHETIC DESK FLIP CLOCK -->
+  <!-- ============================================== -->
+  <div id="desk-clock-layer" class="fullscreen-layer desk-clock-view hidden">
+    <!-- Center Flip Clock Container -->
+    <div class="desk-clock-center">
+      
+      <!-- Subject Badge & Mode Tag -->
+      <div class="desk-clock-header">
+        <span id="clock-subject-badge" class="subject-badge badge-physics pulse">Physics</span>
+        <span id="clock-mode-indicator" class="clock-mode-tag">🔒 HARDCORE LOCK-IN</span>
+      </div>
+
+      <!-- Main Flip Digits Display -->
+      <div class="flip-clock-display" id="flip-clock-display">
+        <!-- Hours (if applicable) -->
+        <div class="flip-unit" id="flip-unit-hours" style="display: none;">
+          <div class="flip-card">
+            <div class="flip-card-face top"><span id="digit-hours-top">00</span></div>
+            <div class="flip-card-face bottom"><span id="digit-hours-bottom">00</span></div>
+            <div class="card-divider"></div>
+          </div>
+          <div class="unit-label">HOURS</div>
+        </div>
+
+        <div class="flip-colon" id="flip-colon-hours" style="display: none;">:</div>
+
+        <!-- Minutes -->
+        <div class="flip-unit">
+          <div class="flip-card">
+            <div class="flip-card-face top"><span id="digit-mins-top">25</span></div>
+            <div class="flip-card-face bottom"><span id="digit-mins-bottom">25</span></div>
+            <div class="card-divider"></div>
+          </div>
+          <div class="unit-label">MINUTES</div>
+        </div>
+
+        <div class="flip-colon">:</div>
+
+        <!-- Seconds -->
+        <div class="flip-unit">
+          <div class="flip-card">
+            <div class="flip-card-face top"><span id="digit-secs-top">00</span></div>
+            <div class="flip-card-face bottom"><span id="digit-secs-bottom">00</span></div>
+            <div class="card-divider"></div>
+          </div>
+          <div class="unit-label">SECONDS</div>
+        </div>
+      </div>
+
+      <!-- Topic Title & Progress Info -->
+      <div class="desk-clock-footer">
+        <h2 id="clock-topic-title" class="clock-topic-title">HC Verma Problem Solving Chapter 5</h2>
+        <div class="clock-progress-bar-wrapper">
+          <div id="clock-progress-fill" class="clock-progress-fill" style="width: 0%;"></div>
+        </div>
+        <div class="clock-progress-meta">
+          <span id="clock-elapsed-meta">00:00 elapsed</span>
+          <span id="clock-target-meta">Target: 25m</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Mouse Autohide Overlay Action Bar -->
+    <div class="desk-clock-hover-bar" id="desk-clock-hover-bar">
+      <!-- Ambient Sound Toggle -->
+      <div class="hover-sound-controls">
+        <button id="clock-sound-btn" class="icon-text-btn">
+          <span id="clock-sound-icon">🔇</span>
+          <span id="clock-sound-label">Sound: Off</span>
+        </button>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="hover-actions">
+        <!-- Normal Mode Only: Keep in Background button -->
+        <button id="clock-background-btn" class="btn-subtle" title="Minimize/Keep ticking in background">
+          🪟 Keep in Background
+        </button>
+        <!-- Finish & Log Session button (Always visible on hover) -->
+        <button id="clock-finish-btn" class="btn-primary">
+          ⏹️ Finish & Log Session
+        </button>
+        <!-- Lock-In Mode Only: Emergency Unlock -->
+        <button id="clock-unlock-btn" class="btn-subtle danger" title="Requires Password or Accountability Pledge">
+          🔓 Emergency Unlock
+        </button>
+      </div>
+    </div>
+
+    <!-- Emergency Key Reminder (Subtle) -->
+    <div class="hard-failsafe-hint">
+      Hard Failsafe: <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>F12</kbd>
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- MODAL: EMERGENCY UNLOCK GATE -->
+  <!-- ============================================== -->
+  <div id="emergency-modal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-badge-danger">🛡️ EMERGENCY UNLOCK GATE</div>
+        <h2>Break Lock-In Immersion</h2>
+        <p>Your session will be immediately saved with exact seconds. To exit early, select an accountability method:</p>
+      </div>
+
+      <!-- Modal Tabs -->
+      <div class="modal-tabs">
+        <button class="modal-tab active" data-modal-tab="pledge" id="tab-pledge-btn">Accountability Pledge</button>
+        <button class="modal-tab" data-modal-tab="password" id="tab-password-btn">Security Password</button>
+      </div>
+
+      <!-- Tab Content 1: Accountability Pledge -->
+      <div id="modal-tab-pledge" class="modal-tab-content active">
+        <p class="pledge-instructions">Type the exact accountability pledge below to reinforce your intention:</p>
+        <div class="pledge-target-box" id="target-pledge-text">"I promise to stay disciplined and return to my studies"</div>
+        
+        <textarea id="pledge-input" class="pledge-textarea" placeholder="Type the pledge sentence here..."></textarea>
+        
+        <div class="pledge-progress">
+          <span id="pledge-match-counter">0 / 53 characters matched</span>
+          <span id="pledge-match-badge" class="badge-incomplete">Incomplete</span>
+        </div>
+
+        <button id="confirm-pledge-unlock-btn" class="btn-primary mt-3" disabled>
+          I Acknowledge & Unlock Session
+        </button>
+      </div>
+
+      <!-- Tab Content 2: Security Password -->
+      <div id="modal-tab-password" class="modal-tab-content">
+        <div class="input-group">
+          <label for="emergency-password-input">Security Password (Default: <code>unlock123</code>)</label>
+          <input type="password" id="emergency-password-input" class="text-input" placeholder="Enter security password...">
+        </div>
+        <div id="password-error-msg" class="error-msg hidden">Incorrect password. Please try again or use the Accountability Pledge.</div>
+
+        <button id="confirm-password-unlock-btn" class="btn-primary mt-3">
+          Verify Password & Unlock
+        </button>
+      </div>
+
+      <div class="modal-footer">
+        <button id="cancel-emergency-btn" class="btn-subtle">Never mind, keep studying</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- MODAL: SETTINGS & BACKUP -->
+  <!-- ============================================== -->
+  <div id="settings-modal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>StudyLock Settings</h2>
+        <p>Configure security passwords, accountability pledges, sound, and data backup.</p>
+      </div>
+
+      <div class="settings-body">
+        <!-- Security Password -->
+        <div class="input-group">
+          <label for="settings-password">Custom Emergency Password</label>
+          <input type="text" id="settings-password" class="text-input" value="unlock123">
+          <span class="input-hint">Used for quick emergency unlocking during hardcore Lock-In mode.</span>
+        </div>
+
+        <!-- Accountability Pledge Customization -->
+        <div class="input-group mt-3">
+          <label for="settings-pledge">Accountability Pledge Sentence</label>
+          <input type="text" id="settings-pledge" class="text-input" value="I promise to stay disciplined and return to my studies">
+          <span class="input-hint">Sentence you must type to unlock without password.</span>
+        </div>
+
+        <!-- Data Backup & Reset -->
+        <div class="settings-section mt-4">
+          <h4>Data Management & Storage Vault</h4>
+          <p class="small-text">All study logs are stored in <code>study_data.json</code> with second-by-second precision.</p>
+          <div class="settings-btn-row">
+            <button id="settings-export-btn" class="btn-subtle">💾 Export study_data.json</button>
+            <button id="settings-import-btn" class="btn-subtle">📂 Import Backup</button>
+            <input type="file" id="settings-file-input" accept=".json" style="display:none;">
+            <button id="settings-clear-btn" class="btn-subtle danger">⚠️ Clear All Sessions</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer mt-4">
+        <button id="save-settings-btn" class="btn-primary">Save & Apply Settings</button>
+        <button id="close-settings-btn" class="btn-subtle">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- App Script -->
+  <script src="app.js"></script>
+</body>
+</html>

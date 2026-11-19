@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Production builds (large binaries)
+dist/
+bin/
+obj/
+publish/
+*.exe
+*.dll
+
+# Personal local study session logs
+study_data.json
+
+# Logs & temp
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
