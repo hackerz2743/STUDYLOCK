@@ -80,37 +80,32 @@
                 </div>
               </div>
 
-              <!-- SECURITY EXIT CODE (Compact Strip) -->
+              <!-- SECURITY EXIT CODE (With Custom Option) -->
               <div class="form-group mt-3">
-                <div class="exit-code-strip">
-                  <div class="exit-code-meta">
-                    <span class="exit-code-label">EXIT CODE</span>
-                    <span class="exit-code-number" id="displayPlayerCode">749 204</span>
-                  </div>
-                  <button id="btnPlayerRegenCode" class="btn-text-subtle" title="Generate new code">Regenerate</button>
-                </div>
-                <span class="exit-code-hint">Write in notebook to unlock exit.</span>
-                <input type="password" id="playerCustomPassword" class="bold-input-standard hidden" placeholder="Enter emergency unlock password..." spellcheck="false" autocomplete="off">
-              </div>
-
-              <!-- MULTI-SITE WORKSPACES (Clean & Functional) -->
-              <div class="form-group mt-3 workspace-setup-section">
-                <div class="workspace-section-header">
-                  <span class="workspace-section-title">WORKSPACES</span>
-                  <div class="workspace-quick-row">
-                    <button type="button" class="btn-preset-chip" id="btnAddPwPreset">+ PhysicsWallah</button>
-                    <button type="button" class="btn-preset-chip" id="btnAddGptPreset">+ ChatGPT</button>
+                <div class="exit-code-mode-row">
+                  <span class="form-label-bold">EXIT CODE</span>
+                  <div class="segmented-mini-selector">
+                    <button type="button" class="btn-seg-mini active" id="btnExitModeRandom">Notebook Code</button>
+                    <button type="button" class="btn-seg-mini" id="btnExitModeCustom">Custom Password</button>
                   </div>
                 </div>
 
-                <div class="workspace-input-row mt-2">
-                  <input type="text" id="customWsTitle" class="bold-input-compact" placeholder="Title (e.g. PW)" maxlength="20">
-                  <input type="text" id="customWsUrl" class="bold-input-compact flex-1" placeholder="https://..." spellcheck="false" autocomplete="off">
-                  <button type="button" id="btnSaveCustomWs" class="btn-add-ws-action">Add</button>
+                <!-- Option A: Auto 6-digit notebook code -->
+                <div id="boxExitCodeRandom" class="mt-2">
+                  <div class="exit-code-strip">
+                    <div class="exit-code-meta">
+                      <span class="exit-code-label">CODE</span>
+                      <span class="exit-code-number" id="displayPlayerCode">749 204</span>
+                    </div>
+                    <button type="button" id="btnPlayerRegenCode" class="btn-text-subtle" title="Generate new code">Regenerate</button>
+                  </div>
+                  <span class="exit-code-hint">Write in notebook to unlock exit.</span>
                 </div>
 
-                <div id="savedWorkspacesContainer" class="saved-workspaces-container mt-2">
-                  <!-- Injected saved cards -->
+                <!-- Option B: User's own custom exit password -->
+                <div id="boxExitCodeCustom" class="mt-2 hidden">
+                  <input type="password" id="playerCustomPassword" class="bold-input-standard" placeholder="Set your exit password..." spellcheck="false" autocomplete="off">
+                  <span class="exit-code-hint">Type this exact password when exiting early.</span>
                 </div>
               </div>
 
@@ -173,8 +168,10 @@
           </div>
 
           <div class="bar-center">
-            <div class="workspace-tabs-strip" id="workspaceTabsBar">
-              <!-- Dynamic tabs injected here: e.g. [ 1. PhysicsWallah ] [ 2. YouTube Lecture ] [ 3. ChatGPT Doubts ] [ + Add Resource ] -->
+            <div class="dual-deck-indicator">
+              <button type="button" class="deck-pill active" id="deckPillYt">YouTube Lecture</button>
+              <span class="deck-arrow-sep">⇄</span>
+              <button type="button" class="deck-pill" id="deckPillRay">RaySensei</button>
             </div>
           </div>
 
@@ -191,27 +188,30 @@
             <!-- Glowing Digital Countdown Timer -->
             <div class="hud-timer-badge">
               <span class="hud-digital-timer" id="playerHudCountdown">42:15</span>
+              <span id="playerHudElapsed" class="hidden"></span>
             </div>
 
             <!-- Emergency Exit Button -->
             <button id="btnPlayerEmergency" class="btn-hud-emergency-notebook">
-              Unlock with Notebook Code
+              Unlock Session
             </button>
           </div>
         </div>
 
         <div class="video-container" id="videoFrameWrapper">
-          <!-- Dynamic Direct Watch & Workspace Webviews Injected Here -->
+          <!-- Webviews injected dynamically -->
 
-          <!-- Workspace Deck Navigational Arrows (From Screenshot) -->
-          <button id="btnPrevWorkspace" class="deck-nav-arrow deck-nav-prev hidden" title="Previous Workspace (Ctrl+Left)">❮</button>
-          <button id="btnNextWorkspace" class="deck-nav-arrow deck-nav-next hidden" title="Next Workspace (Ctrl+Right)">❯</button>
+          <!-- Floating Edge Navigation Arrow (Middle Right Edge on YouTube -> Flips to RaySensei) -->
+          <button id="btnFlipToRaySensei" class="deck-edge-arrow arrow-edge-right" title="Flip to RaySensei (Alt+Right / Ctrl+2)">
+            <span class="edge-arrow-icon">❯</span>
+            <span class="edge-arrow-tag">RaySensei</span>
+          </button>
 
-          <!-- Floating Deck Indicator Badge -->
-          <div id="workspaceDeckIndicator" class="workspace-deck-indicator hidden">
-            <span class="deck-indicator-dot">●</span>
-            <span id="deckIndicatorText">Workspace 1 of 1 · State Persisted</span>
-          </div>
+          <!-- Floating Edge Navigation Arrow (Middle Left Edge on RaySensei -> Flips back to YouTube) -->
+          <button id="btnFlipToYouTube" class="deck-edge-arrow arrow-edge-left hidden" title="Flip back to Lecture (Alt+Left / Ctrl+1)">
+            <span class="edge-arrow-icon">❮</span>
+            <span class="edge-arrow-tag">Lecture</span>
+          </button>
         </div>
       </div>
     </section>
@@ -495,29 +495,6 @@
       <div class="dialog-actions-row mt-6">
         <button id="btnCancelEmergencyKey" class="btn-dialog-cancel">Return to Study</button>
         <button id="btnConfirmEmergencyKey" class="btn-dialog-danger" disabled>Unlock Session</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ==================== ADD RESOURCE IN-SESSION MODAL ==================== -->
-  <div id="addResourceModal" class="modal-overlay hidden">
-    <div class="macos-dialog-card">
-      <h2>Add Whitelisted Study Resource</h2>
-      <p class="dialog-desc">Enter another website link (e.g. PhysicsWallah batch portal, ChatGPT for doubts, or NCERT online). It will open in a separate workspace tab.</p>
-
-      <div class="form-group mt-4 text-left">
-        <label class="form-label-bold" for="newResourceTitleInput">Resource Title / Tab Name</label>
-        <input type="text" id="newResourceTitleInput" class="bold-input-standard" placeholder="e.g. PhysicsWallah / ChatGPT / NCERT Notes" maxlength="30">
-      </div>
-
-      <div class="form-group mt-3 text-left">
-        <label class="form-label-bold" for="newResourceUrlInput">Resource URL</label>
-        <input type="text" id="newResourceUrlInput" class="bold-input-standard" placeholder="https://..." spellcheck="false" autocomplete="off">
-      </div>
-
-      <div class="dialog-actions-row mt-6">
-        <button id="btnCancelAddResource" class="btn-dialog-cancel">Cancel</button>
-        <button id="btnConfirmAddResource" class="btn-dialog-primary">Add Workspace Tab</button>
       </div>
     </div>
   </div>

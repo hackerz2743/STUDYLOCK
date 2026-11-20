@@ -306,8 +306,8 @@ if (!gotTheLock) {
   });
 
   app.whenReady().then(() => {
-    // Configure default and isolated partitions with pristine Chrome User-Agent for Google/YouTube OAuth login
-    [session.defaultSession, session.fromPartition('persist:studylock_yt'), session.fromPartition('persist:studylock_workspaces')].forEach(ses => {
+    // Configure default and isolated partitions with pristine Chrome User-Agent for Google/YouTube & RaySensei login
+    [session.defaultSession, session.fromPartition('persist:studylock_yt'), session.fromPartition('persist:studylock_raysensei')].forEach(ses => {
       ses.setUserAgent(CHROME_UA);
       ses.webRequest.onBeforeSendHeaders(
         { urls: ['*://*.youtube-nocookie.com/*', '*://*.youtube.com/embed/*'] },
@@ -348,12 +348,25 @@ if (!gotTheLock) {
             mainWindow.webContents.send('toggle-parent-proof-global');
           }
         }
-        // Intercept Ctrl+1..5 for fast workspace tab switching
+        // Intercept Ctrl+1..2 for fast dual deck switching
         if (input.type === 'keyDown' && input.control && !input.alt && !input.shift) {
           if (['1', '2', '3', '4', '5'].includes(input.key)) {
             const targetIndex = parseInt(input.key, 10) - 1;
             if (isLockedIn && mainWindow && !mainWindow.isDestroyed()) {
               mainWindow.webContents.send('switch-workspace-global', targetIndex);
+            }
+          }
+        }
+
+        // Intercept Alt+ArrowRight / Alt+ArrowLeft for fast dual-deck flipping
+        if (input.type === 'keyDown' && input.alt && !input.control && !input.shift) {
+          if (input.key === 'ArrowRight') {
+            if (isLockedIn && mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('switch-workspace-global', 1);
+            }
+          } else if (input.key === 'ArrowLeft') {
+            if (isLockedIn && mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('switch-workspace-global', 0);
             }
           }
         }

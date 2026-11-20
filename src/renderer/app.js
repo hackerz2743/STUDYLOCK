@@ -17,10 +17,10 @@ let ritualMode = 'random'; // 'random' | 'custom'
 let currentVideoId = '';
 let isParentProofOpen = false;
 
-// Whitelisted Multi-Resource Workspaces State
-let extraResourcesList = []; // Array of { id, title, url }
-let activeWorkspaces = []; // Array of { id, title, url, type, webviewEl }
-let activeWorkspaceIndex = 0;
+// Dedicated Dual Deck State (YouTube + RaySensei)
+let currentDeck = 'youtube'; // 'youtube' | 'raysensei'
+let ytWebviewEl = null;
+let rayWebviewEl = null;
 
 // Dual Clock Mode state
 let clockMode = 'locked'; // 'locked' | 'free'
@@ -46,14 +46,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupWindowControls();
   setupTabNavigation();
   setupPlayerSection();
-  setupResourceWhitelistUI();
   setupClockSection();
   setupParentProofOverlay();
   setupEmergencyExitModal();
   setupTimerExpiryModal();
   setupEmergencyChordListener();
   generateNewRandomCode();
-  renderExtraResourcesList();
 });
 
 // ========================================================
@@ -160,59 +158,78 @@ function setupPlayerSection() {
   const btnPAdd15 = document.getElementById('btnPlayerAdd15');
   if (btnPAdd15) btnPAdd15.addEventListener('click', () => adjustMinutes('playerCustomMinutes', 15));
 
-  // Ritual Toggle
-  const btnRand = document.getElementById('btnRitualRandom');
-  const btnCust = document.getElementById('btnRitualCustom');
-  const boxRand = document.getElementById('boxRitualRandom');
-  const boxCust = document.getElementById('boxRitualCustom');
+  // Exit Code Mode Toggle: Notebook Code vs Custom Password
+  const btnExitRand = document.getElementById('btnExitModeRandom') || document.getElementById('btnRitualRandom');
+  const btnExitCust = document.getElementById('btnExitModeCustom') || document.getElementById('btnRitualCustom');
+  const boxExitRand = document.getElementById('boxExitCodeRandom') || document.getElementById('boxRitualRandom');
+  const boxExitCust = document.getElementById('boxExitCodeCustom') || document.getElementById('boxRitualCustom');
 
-  if (btnRand && btnCust && boxRand && boxCust) {
-    btnRand.addEventListener('click', () => {
+  if (btnExitRand && btnExitCust && boxExitRand && boxExitCust) {
+    btnExitRand.addEventListener('click', () => {
       ritualMode = 'random';
-      btnRand.classList.add('active');
-      btnCust.classList.remove('active');
-      boxRand.classList.add('active');
-      boxCust.classList.remove('active');
+      btnExitRand.classList.add('active');
+      btnExitCust.classList.remove('active');
+      boxExitRand.classList.remove('hidden');
+      boxExitRand.classList.add('active');
+      boxExitCust.classList.add('hidden');
+      boxExitCust.classList.remove('active');
     });
 
-    btnCust.addEventListener('click', () => {
+    btnExitCust.addEventListener('click', () => {
       ritualMode = 'custom';
-      btnCust.classList.add('active');
-      btnRand.classList.remove('active');
-      boxCust.classList.add('active');
-      boxRand.classList.remove('active');
+      btnExitCust.classList.add('active');
+      btnExitRand.classList.remove('active');
+      boxExitCust.classList.remove('hidden');
+      boxExitCust.classList.add('active');
+      boxExitRand.classList.add('hidden');
+      boxExitRand.classList.remove('active');
+      const custInput = document.getElementById('playerCustomPassword');
+      if (custInput) custInput.focus();
     });
   }
 
   const btnPRegen = document.getElementById('btnPlayerRegenCode');
   if (btnPRegen) btnPRegen.addEventListener('click', generateNewRandomCode);
 
+  // Dual Deck Top Bar Switcher Pills
+  const pillYt = document.getElementById('deckPillYt');
+  if (pillYt) pillYt.addEventListener('click', () => switchToDeck('youtube'));
+  const pillRay = document.getElementById('deckPillRay');
+  if (pillRay) pillRay.addEventListener('click', () => switchToDeck('raysensei'));
+
+  // Ensure Floating Edge Navigation Arrows are wired
+  ensureEdgeArrowButtons();
+
   // Preview Button: Render Live Direct Watch in Stage Screen
   const btnPreview = document.getElementById('btnPreviewUrl');
   const btnClosePrev = document.getElementById('btnClosePreview');
 
-  btnPreview.addEventListener('click', () => {
-    const url = document.getElementById('ytUrlInput').value.trim();
-    const videoData = convertToYouTubeData(url);
+  if (btnPreview) {
+    btnPreview.addEventListener('click', () => {
+      const url = document.getElementById('ytUrlInput').value.trim();
+      const videoData = convertToYouTubeData(url);
 
-    if (!videoData) {
-      alert('Please enter or paste a valid YouTube video link first to preview.');
-      document.getElementById('ytUrlInput').focus();
-      return;
-    }
+      if (!videoData) {
+        alert('Please enter or paste a valid YouTube video link first to preview.');
+        document.getElementById('ytUrlInput').focus();
+        return;
+      }
 
-    renderPreviewPlayer(videoData.videoId);
-  });
+      renderPreviewPlayer(videoData.videoId);
+    });
+  }
 
   if (btnClosePrev) {
     btnClosePrev.addEventListener('click', closeStagePreview);
   }
 
   // Launch Player
-  document.getElementById('btnLaunchPlayer').addEventListener('click', handlePlayerLaunch);
+  const btnLaunch = document.getElementById('btnLaunchPlayer');
+  if (btnLaunch) btnLaunch.addEventListener('click', handlePlayerLaunch);
 
   // Permanent Bar Emergency Exit Button
-  document.getElementById('btnPlayerEmergency').addEventListener('click', openEmergencyModal);
+  const btnEmerg = document.getElementById('btnPlayerEmergency');
+  if (btnEmerg) btnEmerg.addEventListener('click', openEmergencyModal);
 }
 
 function renderPreviewPlayer(videoId) {
@@ -329,181 +346,247 @@ function extractYouTubeId(url) {
 }
 
 // ========================================================
-// Persistent Multi-Site Workspaces Storage & Engine
+// DEDICATED DUAL DECK ENGINE: YouTube + RaySensei
 // ========================================================
-let savedWorkspacesList = [];
-
-function loadSavedWorkspaces() {
-  try {
-    const raw = localStorage.getItem('studylock_saved_workspaces');
-    if (raw) {
-      savedWorkspacesList = JSON.parse(raw);
-    } else {
-      savedWorkspacesList = [
-        { id: 'pw_default', title: 'PhysicsWallah', url: 'https://study.physicswallah.live/' },
-        { id: 'gpt_default', title: 'ChatGPT Doubts', url: 'https://chatgpt.com/' }
-      ];
-      persistSavedWorkspaces();
-    }
-  } catch (e) {
-    savedWorkspacesList = [];
-  }
-}
-
-function persistSavedWorkspaces() {
-  try {
-    localStorage.setItem('studylock_saved_workspaces', JSON.stringify(savedWorkspacesList));
-  } catch (e) {}
-}
-
-function addSavedWorkspace(title, url) {
-  if (!url) return;
-  url = url.trim();
-  if (!/^https?:\/\//i.test(url)) {
-    url = 'https://' + url;
-  }
-  const existing = savedWorkspacesList.find(w => w.url.toLowerCase() === url.toLowerCase());
-  if (existing) {
-    existing.title = title || existing.title;
-  } else {
-    savedWorkspacesList.push({
-      id: 'ws_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-      title: title || 'Study Website',
-      url
-    });
-  }
-  persistSavedWorkspaces();
-  renderSavedWorkspacesList();
-}
-
-function removeSavedWorkspace(id) {
-  savedWorkspacesList = savedWorkspacesList.filter(w => w.id !== id);
-  persistSavedWorkspaces();
-  renderSavedWorkspacesList();
-}
-
-function renderSavedWorkspacesList() {
-  const container = document.getElementById('savedWorkspacesContainer');
-  if (!container) return;
-
-  if (savedWorkspacesList.length === 0) {
-    container.innerHTML = '<div style="font-size: 11px; color: #64748b; font-style: italic; padding: 4px 0;">No extra websites added. PC will strictly only run the YouTube lecture.</div>';
-    return;
-  }
-
-  container.innerHTML = '';
-  savedWorkspacesList.forEach((ws) => {
-    let domain = '';
-    try {
-      domain = new URL(ws.url).hostname;
-    } catch (e) {
-      domain = ws.url;
-    }
-
-    const card = document.createElement('div');
-    card.className = 'saved-workspace-card';
-    card.innerHTML = `
-      <div class="saved-card-left">
-        <span class="saved-card-tag">✓ SAVED</span>
-        <span class="saved-card-title">${escapeHtml(ws.title)}</span>
-        <span class="saved-card-url" title="${escapeHtml(ws.url)}">${escapeHtml(domain)}</span>
-      </div>
-      <button type="button" class="btn-delete-saved-ws" title="Remove website" data-id="${ws.id}">✕</button>
-    `;
-
-    card.querySelector('.btn-delete-saved-ws').addEventListener('click', () => {
-      removeSavedWorkspace(ws.id);
-    });
-
-    container.appendChild(card);
-  });
-}
-
-function setupResourceWhitelistUI() {
-  loadSavedWorkspaces();
-  renderSavedWorkspacesList();
-
-  const btnAddPw = document.getElementById('btnAddPwPreset');
-  const btnAddGpt = document.getElementById('btnAddGptPreset');
-  const btnSaveCustom = document.getElementById('btnSaveCustomWs');
-
-  if (btnAddPw) {
-    btnAddPw.addEventListener('click', () => {
-      addSavedWorkspace('PhysicsWallah', 'https://study.physicswallah.live/');
-    });
-  }
-  if (btnAddGpt) {
-    btnAddGpt.addEventListener('click', () => {
-      addSavedWorkspace('ChatGPT Doubts', 'https://chatgpt.com/');
-    });
-  }
-  if (btnSaveCustom) {
-    btnSaveCustom.addEventListener('click', () => {
-      const titleInput = document.getElementById('customWsTitle');
-      const urlInput = document.getElementById('customWsUrl');
-      const title = (titleInput ? titleInput.value.trim() : '') || 'Study Resource';
-      let url = urlInput ? urlInput.value.trim() : '';
-
-      if (!url) {
-        alert('Please enter a website URL.');
-        if (urlInput) urlInput.focus();
-        return;
-      }
-
-      addSavedWorkspace(title, url);
-      if (titleInput) titleInput.value = '';
-      if (urlInput) urlInput.value = '';
-    });
-  }
-
-  // Floating Deck Navigation Arrows (Matching User Screenshot)
-  const btnPrev = document.getElementById('btnPrevWorkspace');
-  const btnNext = document.getElementById('btnNextWorkspace');
-
-  if (btnPrev) {
-    btnPrev.addEventListener('click', () => {
-      if (activeWorkspaces.length > 1) {
-        const prevIdx = activeWorkspaceIndex > 0 ? activeWorkspaceIndex - 1 : activeWorkspaces.length - 1;
-        switchWorkspace(prevIdx);
-      }
-    });
-  }
-  if (btnNext) {
-    btnNext.addEventListener('click', () => {
-      if (activeWorkspaces.length > 1) {
-        const nextIdx = activeWorkspaceIndex < activeWorkspaces.length - 1 ? activeWorkspaceIndex + 1 : 0;
-        switchWorkspace(nextIdx);
-      }
-    });
-  }
-
-  // In-session modal listeners
-  const btnCancelAdd = document.getElementById('btnCancelAddResource');
-  const btnConfirmAdd = document.getElementById('btnConfirmAddResource');
-  if (btnCancelAdd) {
-    btnCancelAdd.addEventListener('click', closeAddResourceModal);
-  }
-  if (btnConfirmAdd) {
-    btnConfirmAdd.addEventListener('click', handleConfirmAddResource);
-  }
-}
-
 function escapeHtml(str) {
   if (!str) return '';
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function destroyDualDeckWebviews() {
+  const wrapper = document.getElementById('videoFrameWrapper');
+  if (wrapper) {
+    const webviews = wrapper.querySelectorAll('webview');
+    webviews.forEach(wv => {
+      try {
+        wv.src = 'about:blank';
+      } catch (e) {}
+      wv.remove();
+    });
+  }
+  ytWebviewEl = null;
+  rayWebviewEl = null;
+}
+
+function ensureEdgeArrowButtons() {
+  const wrapper = document.getElementById('videoFrameWrapper');
+  if (!wrapper) return;
+
+  let btnFlipRay = document.getElementById('btnFlipToRaySensei');
+  if (!btnFlipRay) {
+    btnFlipRay = document.createElement('button');
+    btnFlipRay.id = 'btnFlipToRaySensei';
+    btnFlipRay.className = 'deck-edge-arrow arrow-edge-right';
+    btnFlipRay.title = 'Flip to RaySensei (Alt+Right / Ctrl+2)';
+    btnFlipRay.innerHTML = '<span class="edge-arrow-icon">❯</span><span class="edge-arrow-tag">RaySensei</span>';
+    wrapper.appendChild(btnFlipRay);
+  }
+
+  let btnFlipYt = document.getElementById('btnFlipToYouTube');
+  if (!btnFlipYt) {
+    btnFlipYt = document.createElement('button');
+    btnFlipYt.id = 'btnFlipToYouTube';
+    btnFlipYt.className = 'deck-edge-arrow arrow-edge-left hidden';
+    btnFlipYt.title = 'Flip back to Lecture (Alt+Left / Ctrl+1)';
+    btnFlipYt.innerHTML = '<span class="edge-arrow-icon">❮</span><span class="edge-arrow-tag">Lecture</span>';
+    wrapper.appendChild(btnFlipYt);
+  }
+
+  btnFlipRay.onclick = (e) => {
+    e.stopPropagation();
+    switchToDeck('raysensei');
+  };
+  btnFlipYt.onclick = (e) => {
+    e.stopPropagation();
+    switchToDeck('youtube');
+  };
+}
+
+function switchToDeck(target) {
+  currentDeck = target;
+  const pillYt = document.getElementById('deckPillYt');
+  const pillRay = document.getElementById('deckPillRay');
+  const arrowRight = document.getElementById('btnFlipToRaySensei');
+  const arrowLeft = document.getElementById('btnFlipToYouTube');
+  const hudTopic = document.getElementById('playerHudTopic');
+
+  if (target === 'youtube') {
+    if (ytWebviewEl) {
+      ytWebviewEl.classList.remove('inactive-workspace');
+      ytWebviewEl.classList.add('active-workspace');
+      try { ytWebviewEl.focus(); } catch (e) {}
+    }
+    if (rayWebviewEl) {
+      rayWebviewEl.classList.remove('active-workspace');
+      rayWebviewEl.classList.add('inactive-workspace');
+    }
+    if (pillYt) pillYt.classList.add('active');
+    if (pillRay) pillRay.classList.remove('active');
+    if (arrowRight) arrowRight.classList.remove('hidden');
+    if (arrowLeft) arrowLeft.classList.add('hidden');
+    if (hudTopic) hudTopic.textContent = 'YouTube Lecture';
+  } else {
+    // RaySensei
+    if (rayWebviewEl) {
+      rayWebviewEl.classList.remove('inactive-workspace');
+      rayWebviewEl.classList.add('active-workspace');
+      try { rayWebviewEl.focus(); } catch (e) {}
+    }
+    if (ytWebviewEl) {
+      ytWebviewEl.classList.remove('active-workspace');
+      ytWebviewEl.classList.add('inactive-workspace');
+    }
+    if (pillRay) pillRay.classList.add('active');
+    if (pillYt) pillYt.classList.remove('active');
+    if (arrowRight) arrowRight.classList.add('hidden');
+    if (arrowLeft) arrowLeft.classList.remove('hidden');
+    if (hudTopic) hudTopic.textContent = 'RaySensei';
+  }
+}
+
+function initDedicatedDualDeck(videoId) {
+  const wrapper = document.getElementById('videoFrameWrapper');
+  if (!wrapper) return;
+
+  destroyDualDeckWebviews();
+
+  // 1. YouTube Webview (Primary)
+  const ytWv = document.createElement('webview');
+  ytWv.id = 'ws_webview_yt';
+  ytWv.className = 'workspace-webview active-workspace';
+  ytWv.setAttribute('allowfullscreen', 'true');
+  ytWv.setAttribute('allowpopups', 'true');
+  ytWv.setAttribute('partition', 'persist:studylock_yt');
+  ytWv.setAttribute('useragent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36');
+  ytWv.src = `https://www.youtube.com/watch?v=${videoId}&autoplay=1`;
+
+  // Protect YouTube navigation: allow account sign-in, prevent roaming to unrelated videos
+  ytWv.addEventListener('will-navigate', (e) => {
+    try {
+      const navUrl = new URL(e.url);
+      const navHost = navUrl.hostname.toLowerCase();
+      const isAuthHost = navHost === 'accounts.google.com' ||
+                         navHost === 'accounts.youtube.com' ||
+                         navHost.endsWith('.google.com') ||
+                         navHost.endsWith('.youtube.com');
+      if (isAuthHost && !navUrl.pathname.startsWith('/watch')) {
+        return; // Allow Google account login navigation
+      }
+      const targetId = extractYouTubeId(e.url || '');
+      if (targetId && videoId && targetId !== videoId) {
+        e.preventDefault();
+      }
+    } catch (err) {}
+  });
+
+  ytWv.addEventListener('new-window', (e) => {
+    try {
+      const parsed = new URL(e.url);
+      const host = parsed.hostname.toLowerCase();
+      if (host.includes('google.com') || host.includes('youtube.com') || host.includes('accounts.')) {
+        ytWv.loadURL(e.url);
+        return;
+      }
+    } catch (err) {}
+    e.preventDefault();
+  });
+
+  ytWv.addEventListener('enter-html-full-screen', () => {
+    ytWv.style.position = 'fixed';
+    ytWv.style.top = '0';
+    ytWv.style.left = '0';
+    ytWv.style.width = '100vw';
+    ytWv.style.height = '100vh';
+    ytWv.style.zIndex = '999998';
+  });
+
+  ytWv.addEventListener('leave-html-full-screen', () => {
+    ytWv.style.position = 'relative';
+    ytWv.style.width = '100%';
+    ytWv.style.height = '100%';
+    ytWv.style.zIndex = 'auto';
+  });
+
+  ytWv.addEventListener('dom-ready', () => {
+    ytWv.insertCSS(`
+      #secondary, #related, ytd-watch-next-secondary-results-renderer, #comments, #masthead-container, #guide-button, #guide-wrapper, ytd-mini-guide-renderer, .ytp-ce-element, .ytp-endscreen-content, #below {
+        display: none !important;
+      }
+      #page-manager { margin-top: 0 !important; }
+      ytd-watch-flexy[flexy] #primary.ytd-watch-flexy { max-width: 100vw !important; margin: 0 auto !important; padding: 0 !important; }
+    `).catch(() => {});
+  });
+
+  // 2. RaySensei Webview (Simultaneous Background Companion)
+  const rayWv = document.createElement('webview');
+  rayWv.id = 'ws_webview_raysensei';
+  rayWv.className = 'workspace-webview inactive-workspace';
+  rayWv.setAttribute('allowfullscreen', 'true');
+  rayWv.setAttribute('allowpopups', 'true');
+  rayWv.setAttribute('partition', 'persist:studylock_raysensei');
+  rayWv.setAttribute('useragent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36');
+  rayWv.src = 'https://app.raysensei.com/';
+
+  // Allow navigation inside RaySensei and OAuth providers
+  rayWv.addEventListener('will-navigate', (e) => {
+    try {
+      const navUrl = new URL(e.url);
+      const navHost = navUrl.hostname.toLowerCase();
+      const isAllowed = navHost.includes('raysensei.com') ||
+                        navHost.includes('google.com') ||
+                        navHost.includes('firebaseapp.com') ||
+                        navHost.includes('supabase.co') ||
+                        navHost.includes('clerk.dev') ||
+                        navHost.includes('auth0.com');
+      if (!isAllowed) {
+        e.preventDefault();
+        console.warn('Navigation blocked by StudyLock Whitelist Firewall:', e.url);
+      }
+    } catch (err) {
+      e.preventDefault();
+    }
+  });
+
+  rayWv.addEventListener('new-window', (e) => {
+    try {
+      const navUrl = new URL(e.url);
+      const navHost = navUrl.hostname.toLowerCase();
+      const isAllowed = navHost.includes('raysensei.com') ||
+                        navHost.includes('google.com') ||
+                        navHost.includes('firebaseapp.com') ||
+                        navHost.includes('supabase.co') ||
+                        navHost.includes('clerk.dev') ||
+                        navHost.includes('auth0.com');
+      if (isAllowed) {
+        rayWv.loadURL(e.url);
+        return;
+      }
+    } catch (err) {}
+    e.preventDefault();
+  });
+
+  // Prepend webviews so edge arrow buttons remain on top
+  wrapper.prepend(rayWv);
+  wrapper.prepend(ytWv);
+
+  ytWebviewEl = ytWv;
+  rayWebviewEl = rayWv;
+
+  ensureEdgeArrowButtons();
+  switchToDeck('youtube');
+}
+
 function handlePlayerLaunch() {
   try {
-    // 1. Close preview in stage immediately to stop background audio
     closeStagePreview();
 
-    const url = document.getElementById('ytUrlInput').value.trim();
+    const urlInput = document.getElementById('ytUrlInput');
+    const url = urlInput ? urlInput.value.trim() : '';
     const videoData = convertToYouTubeData(url);
 
     if (!videoData) {
       alert('Please enter a valid YouTube video link before starting.');
-      document.getElementById('ytUrlInput').focus();
+      if (urlInput) urlInput.focus();
       return;
     }
 
@@ -518,7 +601,7 @@ function handlePlayerLaunch() {
       const custInput = document.getElementById('playerCustomPassword');
       const custVal = custInput ? custInput.value.trim() : '';
       if (!custVal) {
-        alert('Please enter a custom emergency password or use the 6-digit notebook code.');
+        alert('Please enter your custom exit password or switch to Notebook Code.');
         if (custInput) custInput.focus();
         return;
       }
@@ -528,47 +611,19 @@ function handlePlayerLaunch() {
     sessionUnlockKey = unlockKey;
 
     const activeChip = document.querySelector('#playerSubjectChips .chip-bold.active');
-    const subject = activeChip ? activeChip.dataset.subject : 'Physics';
-    const topic = document.getElementById('playerTopicInput').value.trim() || 'Lecture Immersion';
-    const targetMinutes = parseInt(document.getElementById('playerCustomMinutes').value, 10) || 45;
+    const subject = activeChip ? (activeChip.dataset.subject || activeChip.textContent.trim()) : 'Physics';
+    const topicInput = document.getElementById('playerTopicInput');
+    const topic = (topicInput ? topicInput.value.trim() : '') || 'Lecture Immersion';
+    const minutesInput = document.getElementById('playerCustomMinutes');
+    const targetMinutes = parseInt(minutesInput ? minutesInput.value : 45, 10) || 45;
 
     const hudSub = document.getElementById('playerHudSubject');
     if (hudSub) hudSub.textContent = subject;
     const hudTop = document.getElementById('playerHudTopic');
     if (hudTop) hudTop.textContent = topic;
 
-    // Construct Multi-Resource Workspaces (YouTube primary + all saved verified websites)
-    const workspaces = [
-      {
-        id: 'ws_yt_primary',
-        title: 'YouTube Lecture',
-        url: `https://www.youtube.com/watch?v=${videoData.videoId}&autoplay=1`,
-        videoId: videoData.videoId,
-        type: 'youtube'
-      }
-    ];
-
-    savedWorkspacesList.forEach((res, idx) => {
-      let rawUrl = (res.url || '').trim();
-      if (!rawUrl) return;
-      if (!/^https?:\/\//i.test(rawUrl)) {
-        rawUrl = 'https://' + rawUrl;
-      }
-      const ytMatch = convertToYouTubeData(rawUrl);
-      workspaces.push({
-        id: 'ws_saved_' + idx,
-        title: res.title.trim() || `Workspace ${workspaces.length + 1}`,
-        url: ytMatch ? `https://www.youtube.com/watch?v=${ytMatch.videoId}&autoplay=1` : rawUrl,
-        videoId: ytMatch ? ytMatch.videoId : null,
-        type: ytMatch ? 'youtube' : 'web'
-      });
-    });
-
-    activeWorkspaces = workspaces;
-    activeWorkspaceIndex = 0;
-
-    // Initialize all workspaces
-    initMultiWorkspaceEnvironment(activeWorkspaces);
+    // Launch Dedicated Dual Deck (YouTube + RaySensei)
+    initDedicatedDualDeck(videoData.videoId);
 
     startSessionEngine({
       type: 'player',
@@ -580,7 +635,9 @@ function handlePlayerLaunch() {
 
     const studioView = document.querySelector('#tabPlayer .studio-viewport-expansive');
     if (studioView) studioView.classList.add('hidden');
-    document.getElementById('playerActiveView').classList.remove('hidden');
+    const activeView = document.getElementById('playerActiveView');
+    if (activeView) activeView.classList.remove('hidden');
+
     window.api.setLockIn(true);
   } catch (err) {
     console.error('Launch failed:', err);
@@ -588,289 +645,29 @@ function handlePlayerLaunch() {
   }
 }
 
-function initMultiWorkspaceEnvironment(workspaces) {
-  const tabsStrip = document.getElementById('workspaceTabsBar');
-  const webviewWrapper = document.getElementById('videoFrameWrapper');
-
-  if (!tabsStrip || !webviewWrapper) return;
-
-  tabsStrip.innerHTML = '';
-  webviewWrapper.innerHTML = '';
-
-  workspaces.forEach((ws, idx) => {
-    // 1. Top workspace tab button
-    const tabBtn = document.createElement('button');
-    tabBtn.className = `workspace-tab ${idx === activeWorkspaceIndex ? 'active' : ''}`;
-    tabBtn.dataset.index = idx;
-    tabBtn.innerHTML = `<span class="tab-num">${idx + 1}.</span> <span>${escapeHtml(ws.title)}</span>`;
-    tabBtn.addEventListener('click', () => switchWorkspace(idx));
-    tabsStrip.appendChild(tabBtn);
-
-    // 2. Sandboxed Webview
-    const webview = document.createElement('webview');
-    webview.id = `ws_webview_${idx}`;
-    webview.className = `workspace-webview ${idx === activeWorkspaceIndex ? 'active-workspace' : 'inactive-workspace'}`;
-    webview.setAttribute('allowfullscreen', 'true');
-    webview.setAttribute('useragent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36');
-
-    if (ws.type === 'youtube') {
-      webview.setAttribute('partition', 'persist:studylock_yt');
-      webview.setAttribute('allowpopups', 'true'); // Allows Google & YouTube account login
-      webview.src = ws.url;
-
-      // Allow Google & YouTube account sign-in while blocking roaming to other videos
-      webview.addEventListener('will-navigate', (e) => {
-        try {
-          const navUrl = new URL(e.url);
-          const navHost = navUrl.hostname.toLowerCase();
-          const isAuthHost = navHost === 'accounts.google.com' ||
-                             navHost === 'accounts.youtube.com' ||
-                             navHost.endsWith('.google.com') ||
-                             navHost.endsWith('.youtube.com');
-          if (isAuthHost && !navUrl.pathname.startsWith('/watch')) {
-            return; // Allow Google account login navigation!
-          }
-          const targetId = extractYouTubeId(e.url || '');
-          if (targetId && ws.videoId && targetId !== ws.videoId) {
-            e.preventDefault();
-          }
-        } catch (err) {}
-      });
-
-      webview.addEventListener('new-window', (e) => {
-        try {
-          const parsed = new URL(e.url);
-          const host = parsed.hostname.toLowerCase();
-          if (host.includes('google.com') || host.includes('youtube.com') || host.includes('accounts.')) {
-            webview.loadURL(e.url);
-            return;
-          }
-        } catch (err) {}
-        e.preventDefault();
-      });
-
-      webview.addEventListener('enter-html-full-screen', () => {
-        webview.style.position = 'fixed';
-        webview.style.top = '0';
-        webview.style.left = '0';
-        webview.style.width = '100vw';
-        webview.style.height = '100vh';
-        webview.style.zIndex = '999998';
-      });
-
-      webview.addEventListener('leave-html-full-screen', () => {
-        webview.style.position = 'relative';
-        webview.style.width = '100%';
-        webview.style.height = '100%';
-        webview.style.zIndex = 'auto';
-      });
-
-      webview.addEventListener('dom-ready', () => {
-        webview.insertCSS(`
-          #secondary, #related, ytd-watch-next-secondary-results-renderer, #comments, #masthead-container, #guide-button, #guide-wrapper, ytd-mini-guide-renderer, .ytp-ce-element, .ytp-endscreen-content, #below {
-            display: none !important;
-          }
-          #page-manager { margin-top: 0 !important; }
-          ytd-watch-flexy[flexy] #primary.ytd-watch-flexy { max-width: 100vw !important; margin: 0 auto !important; padding: 0 !important; }
-        `).catch(() => {});
-      });
-    } else {
-      // Standard whitelisted website (PhysicsWallah, ChatGPT, etc.)
-      webview.setAttribute('partition', 'persist:studylock_workspaces');
-      webview.setAttribute('allowpopups', 'true'); // Allows Google / Auth popups
-      webview.src = ws.url;
-
-      try {
-        const parsed = new URL(ws.url);
-        const baseHost = parsed.hostname.toLowerCase();
-
-        webview.addEventListener('will-navigate', (e) => {
-          try {
-            const navUrl = new URL(e.url);
-            const navHost = navUrl.hostname.toLowerCase();
-            const isAllowed = navHost === baseHost || 
-                              navHost.endsWith('.' + baseHost) || 
-                              navHost.includes('google.com') || 
-                              navHost.includes('openai.com') ||
-                              navHost.includes('physicswallah.live') ||
-                              navHost.includes('pw.live') ||
-                              navHost.includes('auth0.com');
-            if (!isAllowed) {
-              e.preventDefault();
-              console.warn('Navigation blocked by StudyLock Whitelist Firewall:', e.url);
-            }
-          } catch (err) {
-            e.preventDefault();
-          }
-        });
-
-        webview.addEventListener('new-window', (e) => {
-          try {
-            const navUrl = new URL(e.url);
-            const navHost = navUrl.hostname.toLowerCase();
-            const isAllowed = navHost === baseHost || 
-                              navHost.endsWith('.' + baseHost) || 
-                              navHost.includes('google.com') || 
-                              navHost.includes('openai.com') ||
-                              navHost.includes('physicswallah.live') ||
-                              navHost.includes('pw.live') ||
-                              navHost.includes('auth0.com');
-            if (isAllowed) {
-              webview.loadURL(e.url);
-              return;
-            }
-          } catch (err) {}
-          e.preventDefault();
-        });
-      } catch (e) {}
-    }
-
-    ws.webviewEl = webview;
-    webviewWrapper.appendChild(webview);
-  });
-
-  // Re-inject deck navigation arrows and indicator
-  const btnPrev = document.createElement('button');
-  btnPrev.id = 'btnPrevWorkspace';
-  btnPrev.className = `deck-nav-arrow deck-nav-prev ${workspaces.length > 1 ? '' : 'hidden'}`;
-  btnPrev.title = 'Previous Workspace (Ctrl+Left)';
-  btnPrev.textContent = '❮';
-  btnPrev.onclick = () => {
-    if (activeWorkspaces.length > 1) {
-      const prevIdx = activeWorkspaceIndex > 0 ? activeWorkspaceIndex - 1 : activeWorkspaces.length - 1;
-      switchWorkspace(prevIdx);
-    }
-  };
-  webviewWrapper.appendChild(btnPrev);
-
-  const btnNext = document.createElement('button');
-  btnNext.id = 'btnNextWorkspace';
-  btnNext.className = `deck-nav-arrow deck-nav-next ${workspaces.length > 1 ? '' : 'hidden'}`;
-  btnNext.title = 'Next Workspace (Ctrl+Right)';
-  btnNext.textContent = '❯';
-  btnNext.onclick = () => {
-    if (activeWorkspaces.length > 1) {
-      const nextIdx = activeWorkspaceIndex < activeWorkspaces.length - 1 ? activeWorkspaceIndex + 1 : 0;
-      switchWorkspace(nextIdx);
-    }
-  };
-  webviewWrapper.appendChild(btnNext);
-
-  const deckIndicator = document.createElement('div');
-  deckIndicator.id = 'workspaceDeckIndicator';
-  deckIndicator.className = `workspace-deck-indicator ${workspaces.length > 1 ? '' : 'hidden'}`;
-  deckIndicator.innerHTML = `<span class="deck-indicator-dot">●</span> <span id="deckIndicatorText">Workspace 1 of ${workspaces.length}: ${workspaces[0].title} · State Persisted</span>`;
-  webviewWrapper.appendChild(deckIndicator);
-
-  // Top "+ Add Resource" button in tab strip
-  const addTabBtn = document.createElement('button');
-  addTabBtn.className = 'workspace-tab-add';
-  addTabBtn.id = 'btnTopAddResource';
-  addTabBtn.title = 'Add another whitelisted website in this session';
-  addTabBtn.innerHTML = '+ Add Resource';
-  addTabBtn.addEventListener('click', openAddResourceModal);
-  tabsStrip.appendChild(addTabBtn);
-}
-
-function switchWorkspace(targetIndex) {
-  if (targetIndex < 0 || targetIndex >= activeWorkspaces.length) return;
-  activeWorkspaceIndex = targetIndex;
-
-  // Update tabs
-  document.querySelectorAll('.workspace-tab').forEach((tab, idx) => {
-    if (idx === targetIndex) {
-      tab.classList.add('active');
-    } else {
-      tab.classList.remove('active');
-    }
-  });
-
-  // Toggle webview visibility (state/playback persists without reloading)
-  activeWorkspaces.forEach((ws, idx) => {
-    if (ws.webviewEl) {
-      if (idx === targetIndex) {
-        ws.webviewEl.classList.remove('inactive-workspace');
-        ws.webviewEl.classList.add('active-workspace');
-        ws.webviewEl.focus();
-      } else {
-        ws.webviewEl.classList.remove('active-workspace');
-        ws.webviewEl.classList.add('inactive-workspace');
-      }
-    }
-  });
-
-  const cur = activeWorkspaces[targetIndex];
-  if (cur && cur.title) {
-    document.getElementById('playerHudTopic').textContent = cur.title;
-  }
-  const deckText = document.getElementById('deckIndicatorText');
-  if (deckText && cur) {
-    deckText.textContent = `Workspace ${targetIndex + 1} of ${activeWorkspaces.length}: ${cur.title} · State Persisted`;
-  }
-}
-
-function openAddResourceModal() {
-  const modal = document.getElementById('addResourceModal');
-  if (modal) {
-    document.getElementById('newResourceTitleInput').value = '';
-    document.getElementById('newResourceUrlInput').value = '';
-    modal.classList.remove('hidden');
-    document.getElementById('newResourceTitleInput').focus();
-  }
-}
-
-function closeAddResourceModal() {
-  const modal = document.getElementById('addResourceModal');
-  if (modal) modal.classList.add('hidden');
-}
-
-function handleConfirmAddResource() {
-  const title = document.getElementById('newResourceTitleInput').value.trim() || 'Study Resource';
-  let url = document.getElementById('newResourceUrlInput').value.trim();
-
-  if (!url) {
-    alert('Please enter a valid website URL.');
-    document.getElementById('newResourceUrlInput').focus();
-    return;
-  }
-
-  if (!/^https?:\/\//i.test(url)) {
-    url = 'https://' + url;
-  }
-
-  const ytData = convertToYouTubeData(url);
-  const newWs = {
-    id: 'ws_added_' + Date.now(),
-    title,
-    url: ytData ? `https://www.youtube.com/watch?v=${ytData.videoId}&autoplay=1` : url,
-    videoId: ytData ? ytData.videoId : null,
-    type: ytData ? 'youtube' : 'web'
-  };
-
-  activeWorkspaces.push(newWs);
-  closeAddResourceModal();
-  initMultiWorkspaceEnvironment(activeWorkspaces);
-  switchWorkspace(activeWorkspaces.length - 1);
-}
-
-function exitWebviewFullscreenIfActive() {
-  const cur = activeWorkspaces[activeWorkspaceIndex];
-  if (cur && cur.webviewEl) {
-    cur.webviewEl.executeJavaScript('if (document.fullscreenElement) document.exitFullscreen();').catch(() => {});
-  }
-}
-
 function pauseCurrentPlayer() {
-  const cur = activeWorkspaces[activeWorkspaceIndex];
-  if (cur && cur.webviewEl) {
-    cur.webviewEl.executeJavaScript('const v = document.querySelector("video"); if (v) v.pause();').catch(() => {});
+  if (ytWebviewEl) {
+    ytWebviewEl.executeJavaScript('const v = document.querySelector("video"); if (v) v.pause();').catch(() => {});
+  }
+  if (rayWebviewEl) {
+    rayWebviewEl.executeJavaScript('const v = document.querySelector("video, audio"); if (v) v.pause();').catch(() => {});
   }
 }
 
 function resumeCurrentPlayer() {
-  const cur = activeWorkspaces[activeWorkspaceIndex];
-  if (cur && cur.webviewEl) {
-    cur.webviewEl.executeJavaScript('const v = document.querySelector("video"); if (v) v.play();').catch(() => {});
+  if (currentDeck === 'youtube' && ytWebviewEl) {
+    ytWebviewEl.executeJavaScript('const v = document.querySelector("video"); if (v) v.play();').catch(() => {});
+  } else if (currentDeck === 'raysensei' && rayWebviewEl) {
+    rayWebviewEl.executeJavaScript('const v = document.querySelector("video, audio"); if (v) v.play();').catch(() => {});
+  }
+}
+
+function exitWebviewFullscreenIfActive() {
+  if (ytWebviewEl) {
+    ytWebviewEl.executeJavaScript('if (document.fullscreenElement) document.exitFullscreen();').catch(() => {});
+  }
+  if (rayWebviewEl) {
+    rayWebviewEl.executeJavaScript('if (document.fullscreenElement) document.exitFullscreen();').catch(() => {});
   }
 }
 
@@ -1189,8 +986,10 @@ function tickSession() {
   // 2. Update YouTube Player Top Bar
   if (activeSession.type === 'player') {
     const cdStr = `${String(remMinutes + remHours * 60).padStart(2, '0')}:${String(remSeconds).padStart(2, '0')}`;
-    document.getElementById('playerHudCountdown').textContent = cdStr;
-    document.getElementById('playerHudElapsed').textContent = `(${formatDurationSmart(elapsed)} elapsed)`;
+    const hudCountdown = document.getElementById('playerHudCountdown');
+    if (hudCountdown) hudCountdown.textContent = cdStr;
+    const hudElapsed = document.getElementById('playerHudElapsed');
+    if (hudElapsed) hudElapsed.textContent = `(${formatDurationSmart(elapsed)} elapsed)`;
   }
 
   // 3. Update Padhai Proof Parent Overlay if open
@@ -1264,28 +1063,27 @@ async function finishAndSaveSession(exitReason = 'target_completed') {
   await window.api.clearActiveSession();
   await window.api.setLockIn(false);
 
-  // 2. Teardown Viewports & Webview
+  // 2. Teardown Viewports & Webviews
   document.body.style.cursor = 'default';
   const studioView = document.querySelector('#tabPlayer .studio-viewport-expansive');
   if (studioView) studioView.classList.remove('hidden');
-  document.getElementById('playerActiveView').classList.add('hidden');
-  document.getElementById('clockActiveView').classList.add('hidden');
-  document.getElementById('videoFrameWrapper').innerHTML = '';
+  const playerActiveView = document.getElementById('playerActiveView');
+  if (playerActiveView) playerActiveView.classList.add('hidden');
+  const clockActiveView = document.getElementById('clockActiveView');
+  if (clockActiveView) clockActiveView.classList.add('hidden');
+
+  destroyDualDeckWebviews();
 
   const savedSubject = sessionRecord.subject;
   const savedDuration = formatDurationSmart(durationSeconds);
 
   activeSession = null;
   currentSessionRecord = null;
-  activeWorkspaces = [];
-  activeWorkspaceIndex = 0;
   sessionUnlockKey = '';
   currentVideoId = '';
   isClockPaused = false;
   clockPauseStartTimestamp = 0;
   clockTotalPausedMs = 0;
-  const tabsStrip = document.getElementById('workspaceTabsBar');
-  if (tabsStrip) tabsStrip.innerHTML = '';
   generateNewRandomCode();
 
   // 3. Reload from disk to guarantee 100% data sync
@@ -1329,7 +1127,8 @@ function setupParentProofOverlay() {
 
   if (window.api && window.api.onSwitchWorkspace) {
     window.api.onSwitchWorkspace((index) => {
-      switchWorkspace(index);
+      if (index === 0) switchToDeck('youtube');
+      else if (index === 1) switchToDeck('raysensei');
     });
   }
 
@@ -1341,7 +1140,7 @@ function setupParentProofOverlay() {
     });
   }
 
-  // Global Backtick (` / ~) & Ctrl+1..5 key listeners
+  // Global Backtick (` / ~) & Dual Deck shortcuts
   window.addEventListener('keydown', (e) => {
     const isBacktick = (e.key === '`' || e.key === '~' || e.code === 'Backquote');
     if (isBacktick && activeSession) {
@@ -1354,24 +1153,27 @@ function setupParentProofOverlay() {
       return;
     }
 
-    if ((e.ctrlKey || e.metaKey) && ['1', '2', '3', '4', '5'].includes(e.key) && activeSession && activeWorkspaces.length > 0) {
-      e.preventDefault();
-      const idx = parseInt(e.key, 10) - 1;
-      switchWorkspace(idx);
-      return;
-    }
-
-    // Keyboard Shortcuts for Deck Arrows (Alt + Left/Right or Ctrl + Left/Right)
-    if ((e.altKey || e.ctrlKey) && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && activeSession && activeWorkspaces.length > 1) {
-      e.preventDefault();
-      if (e.key === 'ArrowLeft') {
-        const prevIdx = activeWorkspaceIndex > 0 ? activeWorkspaceIndex - 1 : activeWorkspaces.length - 1;
-        switchWorkspace(prevIdx);
-      } else {
-        const nextIdx = activeWorkspaceIndex < activeWorkspaces.length - 1 ? activeWorkspaceIndex + 1 : 0;
-        switchWorkspace(nextIdx);
+    // Intercept Dual Deck flipping (Alt+Left/Right or Ctrl+1/2)
+    if (activeSession && activeSession.type === 'player') {
+      if ((e.ctrlKey || e.metaKey) && e.key === '1') {
+        e.preventDefault();
+        switchToDeck('youtube');
+        return;
       }
-      return;
+      if ((e.ctrlKey || e.metaKey) && e.key === '2') {
+        e.preventDefault();
+        switchToDeck('raysensei');
+        return;
+      }
+      if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        e.preventDefault();
+        if (e.key === 'ArrowLeft') {
+          switchToDeck('youtube');
+        } else {
+          switchToDeck('raysensei');
+        }
+        return;
+      }
     }
 
     if (e.key === 'Escape' && isParentProofOpen) {
@@ -1411,8 +1213,7 @@ function updateParentProofContent() {
   if (!activeSession) return;
 
   const subject = activeSession.subject || 'General Study';
-  const curWs = activeWorkspaces[activeWorkspaceIndex];
-  const activeTabName = curWs ? curWs.title : (activeSession.topic || 'Lecture Immersion');
+  const activeTabName = currentDeck === 'youtube' ? 'YouTube Lecture' : 'RaySensei';
   const elapsed = activeSession.elapsedSeconds || 1;
   const targetMinutes = activeSession.targetMinutes || 45;
   const targetSec = targetMinutes * 60;
@@ -1429,7 +1230,7 @@ function updateParentProofContent() {
   const barEl = document.getElementById('parentProofProgressBar');
 
   if (subEl) subEl.textContent = subject.toUpperCase();
-  if (topicEl) topicEl.textContent = `${activeSession.topic || 'Lecture'} (Active Tab: ${activeTabName})`;
+  if (topicEl) topicEl.textContent = `${activeSession.topic || 'Lecture'} (${activeTabName})`;
   const msgEl = document.getElementById('parentProofDynamicMessage');
 
   if (subEl) subEl.textContent = subject.toUpperCase();
@@ -1532,8 +1333,15 @@ function openEmergencyModal() {
 
   document.getElementById('emergencyPassInput').value = '';
   document.getElementById('btnConfirmEmergencyKey').disabled = true;
-  document.getElementById('emergencyPassMsg').textContent = 'Session shuru karne se pehle jo code notebook mein likha tha wahi enter karein.';
-  document.getElementById('emergencyPassMsg').style.color = 'var(--text-dim)';
+  const msgEl = document.getElementById('emergencyPassMsg');
+  if (msgEl) {
+    if (ritualMode === 'custom') {
+      msgEl.textContent = 'Enter the custom exit password you configured before starting.';
+    } else {
+      msgEl.textContent = 'Session shuru karne se pehle jo code notebook mein likha tha wahi enter karein.';
+    }
+    msgEl.style.color = 'var(--text-dim)';
+  }
   setTimeout(() => {
     document.getElementById('emergencyPassInput').focus();
   }, 100);
