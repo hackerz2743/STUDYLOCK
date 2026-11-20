@@ -162,21 +162,23 @@ function setupPlayerSection() {
   const boxRand = document.getElementById('boxRitualRandom');
   const boxCust = document.getElementById('boxRitualCustom');
 
-  btnRand.addEventListener('click', () => {
-    ritualMode = 'random';
-    btnRand.classList.add('active');
-    btnCust.classList.remove('active');
-    boxRand.classList.add('active');
-    boxCust.classList.remove('active');
-  });
+  if (btnRand && btnCust && boxRand && boxCust) {
+    btnRand.addEventListener('click', () => {
+      ritualMode = 'random';
+      btnRand.classList.add('active');
+      btnCust.classList.remove('active');
+      boxRand.classList.add('active');
+      boxCust.classList.remove('active');
+    });
 
-  btnCust.addEventListener('click', () => {
-    ritualMode = 'custom';
-    btnCust.classList.add('active');
-    btnRand.classList.remove('active');
-    boxCust.classList.add('active');
-    boxRand.classList.remove('active');
-  });
+    btnCust.addEventListener('click', () => {
+      ritualMode = 'custom';
+      btnCust.classList.add('active');
+      btnRand.classList.remove('active');
+      boxCust.classList.add('active');
+      boxRand.classList.remove('active');
+    });
+  }
 
   document.getElementById('btnPlayerRegenCode').addEventListener('click', generateNewRandomCode);
 
@@ -511,13 +513,36 @@ function initMultiWorkspaceEnvironment(workspaces) {
       }
       webview.addEventListener('new-window', (e) => e.preventDefault());
 
+      webview.addEventListener('enter-html-full-screen', () => {
+        webview.style.position = 'fixed';
+        webview.style.top = '0';
+        webview.style.left = '0';
+        webview.style.width = '100vw';
+        webview.style.height = '100vh';
+        webview.style.zIndex = '999998';
+      });
+
+      webview.addEventListener('leave-html-full-screen', () => {
+        webview.style.position = 'static';
+        webview.style.width = '100%';
+        webview.style.height = '100%';
+        webview.style.zIndex = 'auto';
+      });
+
       webview.addEventListener('dom-ready', () => {
         webview.insertCSS(`
-          #secondary, #related, ytd-watch-next-secondary-results-renderer, #comments, #masthead-container #center, #masthead-container #buttons, #masthead-container #voice-search-button, #guide-button, #guide-wrapper, ytd-mini-guide-renderer, .ytp-ce-element, .ytp-endscreen-content, #below {
+          #secondary, #related, ytd-watch-next-secondary-results-renderer, #comments, #masthead-container, #guide-button, #guide-wrapper, ytd-mini-guide-renderer, .ytp-ce-element, .ytp-endscreen-content, #below {
             display: none !important;
           }
           #page-manager { margin-top: 0 !important; }
-          ytd-watch-flexy[flexy] #primary.ytd-watch-flexy { max-width: 100vw !important; margin: 0 auto !important; }
+          ytd-watch-flexy[flexy] #primary.ytd-watch-flexy { max-width: 100vw !important; margin: 0 auto !important; padding: 0 !important; }
+          ytd-app, #content, ytd-page-manager { background: #000 !important; margin: 0 !important; padding: 0 !important; }
+          #player-container-outer, #player-container-inner, #player-container, #movie_player, .html5-video-player, video {
+            width: 100vw !important;
+            height: calc(100vh - 56px) !important;
+            max-width: 100vw !important;
+            max-height: calc(100vh - 56px) !important;
+          }
         `).catch(() => {});
       });
     } else {
@@ -709,21 +734,23 @@ function setupClockSection() {
   const boxRand = document.getElementById('boxClockRitualRandom');
   const boxCust = document.getElementById('boxClockRitualCustom');
 
-  btnRand.addEventListener('click', () => {
-    ritualMode = 'random';
-    btnRand.classList.add('active');
-    btnCust.classList.remove('active');
-    boxRand.classList.add('active');
-    boxCust.classList.remove('active');
-  });
+  if (btnRand && btnCust && boxRand && boxCust) {
+    btnRand.addEventListener('click', () => {
+      ritualMode = 'random';
+      btnRand.classList.add('active');
+      btnCust.classList.remove('active');
+      boxRand.classList.add('active');
+      boxCust.classList.remove('active');
+    });
 
-  btnCust.addEventListener('click', () => {
-    ritualMode = 'custom';
-    btnCust.classList.add('active');
-    btnRand.classList.remove('active');
-    boxCust.classList.add('active');
-    boxRand.classList.remove('active');
-  });
+    btnCust.addEventListener('click', () => {
+      ritualMode = 'custom';
+      btnCust.classList.add('active');
+      btnRand.classList.remove('active');
+      boxCust.classList.add('active');
+      boxRand.classList.remove('active');
+    });
+  }
 
   document.getElementById('btnClockRegenCode').addEventListener('click', generateNewRandomCode);
 

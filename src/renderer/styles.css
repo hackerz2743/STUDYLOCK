@@ -212,7 +212,7 @@ body {
 
 .studio-grid-expansive {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(380px, 1fr);
+  grid-template-columns: minmax(380px, 1fr) minmax(0, 1.45fr);
   gap: 24px;
   width: 90vw;
   max-width: 1560px;
