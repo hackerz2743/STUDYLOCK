@@ -150,11 +150,15 @@ function setupPlayerSection() {
     document.getElementById('playerCustomMinutes').value = mins;
   });
 
-  // Steppers
-  document.getElementById('btnPlayerSub15').addEventListener('click', () => adjustMinutes('playerCustomMinutes', -15));
-  document.getElementById('btnPlayerSub5').addEventListener('click', () => adjustMinutes('playerCustomMinutes', -5));
-  document.getElementById('btnPlayerAdd5').addEventListener('click', () => adjustMinutes('playerCustomMinutes', 5));
-  document.getElementById('btnPlayerAdd15').addEventListener('click', () => adjustMinutes('playerCustomMinutes', 15));
+  // Steppers (Guarded against missing buttons)
+  const btnPSub15 = document.getElementById('btnPlayerSub15');
+  if (btnPSub15) btnPSub15.addEventListener('click', () => adjustMinutes('playerCustomMinutes', -15));
+  const btnPSub5 = document.getElementById('btnPlayerSub5');
+  if (btnPSub5) btnPSub5.addEventListener('click', () => adjustMinutes('playerCustomMinutes', -5));
+  const btnPAdd5 = document.getElementById('btnPlayerAdd5');
+  if (btnPAdd5) btnPAdd5.addEventListener('click', () => adjustMinutes('playerCustomMinutes', 5));
+  const btnPAdd15 = document.getElementById('btnPlayerAdd15');
+  if (btnPAdd15) btnPAdd15.addEventListener('click', () => adjustMinutes('playerCustomMinutes', 15));
 
   // Ritual Toggle
   const btnRand = document.getElementById('btnRitualRandom');
@@ -180,7 +184,8 @@ function setupPlayerSection() {
     });
   }
 
-  document.getElementById('btnPlayerRegenCode').addEventListener('click', generateNewRandomCode);
+  const btnPRegen = document.getElementById('btnPlayerRegenCode');
+  if (btnPRegen) btnPRegen.addEventListener('click', generateNewRandomCode);
 
   // Preview Button: Render Live Direct Watch in Stage Screen
   const btnPreview = document.getElementById('btnPreviewUrl');
@@ -810,10 +815,14 @@ function setupClockSection() {
     document.getElementById('clockCustomMinutes').value = mins;
   });
 
-  document.getElementById('btnClockSub15').addEventListener('click', () => adjustMinutes('clockCustomMinutes', -15));
-  document.getElementById('btnClockSub5').addEventListener('click', () => adjustMinutes('clockCustomMinutes', -5));
-  document.getElementById('btnClockAdd5').addEventListener('click', () => adjustMinutes('clockCustomMinutes', 5));
-  document.getElementById('btnClockAdd15').addEventListener('click', () => adjustMinutes('clockCustomMinutes', 15));
+  const btnCSub15 = document.getElementById('btnClockSub15');
+  if (btnCSub15) btnCSub15.addEventListener('click', () => adjustMinutes('clockCustomMinutes', -15));
+  const btnCSub5 = document.getElementById('btnClockSub5');
+  if (btnCSub5) btnCSub5.addEventListener('click', () => adjustMinutes('clockCustomMinutes', -5));
+  const btnCAdd5 = document.getElementById('btnClockAdd5');
+  if (btnCAdd5) btnCAdd5.addEventListener('click', () => adjustMinutes('clockCustomMinutes', 5));
+  const btnCAdd15 = document.getElementById('btnClockAdd15');
+  if (btnCAdd15) btnCAdd15.addEventListener('click', () => adjustMinutes('clockCustomMinutes', 15));
 
   // Dual Mode Selector Buttons
   const btnModeLocked = document.getElementById('btnClockModeLocked');
@@ -827,18 +836,18 @@ function setupClockSection() {
       clockMode = 'locked';
       btnModeLocked.classList.add('active');
       btnModeFree.classList.remove('active');
-      if (descEl) descEl.innerHTML = '🔒 <strong>Strict Kiosk Mode:</strong> Fullscreen lock, Alt+Tab blocked, 6-digit notebook code required to exit early.';
+      if (descEl) descEl.textContent = 'Fullscreen lock, Alt+Tab blocked, 6-digit notebook code required to exit early.';
       if (ritualGroup) ritualGroup.classList.remove('hidden');
-      if (launchLbl) launchLbl.textContent = 'LAUNCH STRICT LOCKED CLOCK';
+      if (launchLbl) launchLbl.textContent = 'ENTER LOCK-IN';
     });
 
     btnModeFree.addEventListener('click', () => {
       clockMode = 'free';
       btnModeFree.classList.add('active');
       btnModeLocked.classList.remove('active');
-      if (descEl) descEl.innerHTML = '🔓 <strong>Normal Free Mode:</strong> Task switching and all PC apps allowed. Use for reading PDFs, notes, or paper analysis while tracking time.';
+      if (descEl) descEl.textContent = 'Task switching and all PC apps allowed. Use for reading PDFs, notes, or paper analysis while tracking time.';
       if (ritualGroup) ritualGroup.classList.add('hidden');
-      if (launchLbl) launchLbl.textContent = 'START NORMAL FREE TIMER';
+      if (launchLbl) launchLbl.textContent = 'START FREE TIMER';
     });
   }
 
@@ -866,7 +875,8 @@ function setupClockSection() {
     });
   }
 
-  document.getElementById('btnClockRegenCode').addEventListener('click', generateNewRandomCode);
+  const btnCRegen = document.getElementById('btnClockRegenCode');
+  if (btnCRegen) btnCRegen.addEventListener('click', generateNewRandomCode);
 
   document.getElementById('btnLaunchClock').addEventListener('click', handleClockLaunch);
   document.getElementById('btnClockEmergency').addEventListener('click', openEmergencyModal);
@@ -1268,6 +1278,19 @@ function setupParentProofOverlay() {
       e.preventDefault();
       const idx = parseInt(e.key, 10) - 1;
       switchWorkspace(idx);
+      return;
+    }
+
+    // Keyboard Shortcuts for Deck Arrows (Alt + Left/Right or Ctrl + Left/Right)
+    if ((e.altKey || e.ctrlKey) && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && activeSession && activeWorkspaces.length > 1) {
+      e.preventDefault();
+      if (e.key === 'ArrowLeft') {
+        const prevIdx = activeWorkspaceIndex > 0 ? activeWorkspaceIndex - 1 : activeWorkspaces.length - 1;
+        switchWorkspace(prevIdx);
+      } else {
+        const nextIdx = activeWorkspaceIndex < activeWorkspaces.length - 1 ? activeWorkspaceIndex + 1 : 0;
+        switchWorkspace(nextIdx);
+      }
       return;
     }
 
