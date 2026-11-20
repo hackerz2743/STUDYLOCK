@@ -4458,73 +4458,16 @@ button:active,
   line-height: 1.5;
 }
 
-.squad-preview-mockup {
-  width: 100%;
-  max-width: 520px;
-  margin-top: 24px;
-  background: rgba(10, 15, 26, 0.55);
-  border: 1px dashed rgba(255, 255, 255, 0.12);
-  border-radius: var(--radius-md);
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.squad-preview-mockup-label {
-  font-size: 10px;
-  font-weight: 800;
-  color: var(--text-dim);
-  letter-spacing: 0.05em;
-  text-align: left;
-}
-
-.squad-friend-card.preview-card {
-  opacity: 0.85;
-  pointer-events: none;
-  background: rgba(15, 23, 42, 0.65);
-}
-
-.btn-friend-boost.preview-boost {
-  pointer-events: none;
-  opacity: 0.7;
-}
-
-.squad-empty-footer {
-  margin-top: 20px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--text-dim);
-}
-
-.btn-empty-focus-input {
-  background: transparent;
-  border: none;
-  color: var(--accent-cyan);
-  font-size: 12px;
-  font-weight: 800;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.btn-empty-focus-input:hover {
-  text-decoration: underline;
-  transform: translateX(3px);
-}
-
 /* SQUAD FRIEND CARD (Live Populated) */
 .squad-friend-card {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  flex-direction: column;
+  gap: 0;
   background: rgba(10, 15, 26, 0.75);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  padding: 14px 18px;
-  transition: all 0.15s ease;
+  padding: 16px 20px;
+  transition: all 0.2s ease;
 }
 
 .squad-friend-card:hover {
@@ -4534,24 +4477,33 @@ button:active,
 
 .squad-friend-card.studying {
   border-color: rgba(16, 185, 129, 0.35);
-  background: rgba(6, 78, 59, 0.12);
+  background: linear-gradient(180deg, rgba(6, 78, 59, 0.14) 0%, rgba(10, 15, 26, 0.85) 100%);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
 }
 
-.friend-card-left {
+/* TOP ROW: PROMINENT FRIEND NAME & ACTIONS */
+.friend-card-top-row {
   display: flex;
   align-items: center;
-  gap: 14px;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.friend-card-top-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   min-width: 0;
-  flex: 1;
 }
 
 .friend-avatar {
-  width: 44px;
-  height: 44px;
+  width: 42px;
+  height: 42px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
+  font-size: 20px;
   background: rgba(15, 23, 42, 0.9);
   border: 1px solid var(--border-subtle);
   border-radius: 50%;
@@ -4560,34 +4512,29 @@ button:active,
 
 .squad-friend-card.studying .friend-avatar {
   border-color: #10b981;
-  box-shadow: 0 0 10px rgba(16, 185, 129, 0.35);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.35);
 }
 
-.friend-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-
-.friend-name-row {
+.friend-title-block {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.friend-username {
-  font-size: 13px;
-  font-weight: 800;
+.friend-prominent-name {
+  font-size: 17px;
+  font-weight: 900;
   color: #ffffff;
+  letter-spacing: -0.01em;
 }
 
 .friend-status-badge {
   font-size: 10px;
   font-weight: 800;
-  padding: 2px 7px;
+  padding: 3px 8px;
   border-radius: 4px;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
 }
 
 .badge-studying {
@@ -4608,48 +4555,18 @@ button:active,
   border: 1px solid rgba(148, 163, 184, 0.2);
 }
 
-.friend-activity-text {
-  font-size: 12px;
-  color: #cbd5e1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.friend-card-right {
+.friend-card-top-actions {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 8px;
   flex-shrink: 0;
-}
-
-.friend-telemetry-block {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-}
-
-.friend-live-timer {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  font-weight: 900;
-  color: #10b981;
-  font-variant-numeric: tabular-nums;
-}
-
-.friend-today-total {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text-dim);
-  font-variant-numeric: tabular-nums;
 }
 
 .btn-friend-boost {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 5px 10px;
+  padding: 5px 12px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 6px;
@@ -4681,4 +4598,108 @@ button:active,
 .btn-friend-remove:hover {
   color: #f87171;
   background: rgba(239, 68, 68, 0.12);
+}
+
+/* BIG ROUNDED RECTANGULAR BOX: PROMINENT STUDY TIME & TASK */
+.friend-hero-study-box {
+  background: rgba(8, 14, 24, 0.9);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 16px;
+  padding: 16px 20px;
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4), 0 4px 14px rgba(16, 185, 129, 0.06);
+}
+
+.friend-study-box-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.friend-box-micro-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.friend-hero-timer-display {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 900;
+  color: #10b981;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  text-shadow: 0 0 16px rgba(16, 185, 129, 0.4);
+}
+
+.friend-box-today-total {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.friend-box-today-total strong {
+  color: #e2e8f0;
+}
+
+.friend-study-box-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.friend-task-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+}
+
+.friend-prominent-topic {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 280px;
+}
+
+/* IDLE / OFFLINE BOX */
+.friend-idle-study-box {
+  background: rgba(10, 15, 26, 0.6);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  padding: 14px 18px;
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+}
+
+.friend-idle-text {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.friend-today-total-large {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 900;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
 }

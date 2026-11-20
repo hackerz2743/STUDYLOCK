@@ -3084,38 +3084,10 @@ function renderSquadFriends() {
         <div class="squad-empty-guide">
           <div class="squad-empty-hero">
             <div class="squad-empty-icon-frame">👥</div>
-            <h3 class="squad-empty-title">Your Study Squad is Ready</h3>
-            <p class="squad-empty-sub">Connect with your study partners to track each other's live sessions, topics, and daily focus hours in real time.</p>
-          </div>
-
-          <!-- Interactive Live Preview Mockup -->
-          <div class="squad-preview-mockup">
-            <span class="squad-preview-mockup-label">PREVIEW · WHAT LIVE TELEMETRY LOOKS LIKE</span>
-            <div class="squad-friend-card studying preview-card">
-              <div class="friend-card-left">
-                <div class="friend-avatar">🚀</div>
-                <div class="friend-meta">
-                  <div class="friend-name-row">
-                    <span class="friend-username">@study_partner</span>
-                    <span class="friend-status-badge badge-studying">🟢 LOCKED IN</span>
-                  </div>
-                  <span class="friend-activity-text">Physics • HC Verma Ch 7</span>
-                </div>
-              </div>
-              <div class="friend-card-right">
-                <div class="friend-telemetry-block">
-                  <span class="friend-live-timer">⏱️ 34m 12s in session</span>
-                  <span class="friend-today-total">🔥 04h 15m today</span>
-                </div>
-                <div class="btn-friend-boost preview-boost">🔥 Boost</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="squad-empty-footer">
-            <span>Ready to begin?</span>
-            <button type="button" id="btnFocusFriendInput" class="btn-empty-focus-input">
-              Type friend's username on the left →
+            <h3 class="squad-empty-title">No Friends Added Yet</h3>
+            <p class="squad-empty-sub">Add your friends or study partners using their username on the left to track each other's live sessions, topics, and study hours in real time!</p>
+            <button type="button" id="btnFocusFriendInput" class="btn-squad-add-primary mt-3" style="font-size: 12px; padding: 9px 18px;">
+              + Add Your First Friend
             </button>
           </div>
         </div>
@@ -3147,48 +3119,77 @@ function renderSquadFriends() {
   listEl.innerHTML = displayFriends.map(f => {
     const isStudying = f.presenceState === 'studying';
     const isIdle = f.presenceState === 'idle';
+    const color = SUBJECT_COLORS[f.currentSubject] || '#38bdf8';
 
     let badgeHtml = '';
-    let activityText = '';
-
     if (isStudying) {
       badgeHtml = `<span class="friend-status-badge badge-studying">🟢 LOCKED IN</span>`;
-      activityText = `${escapeHtml(f.currentSubject || 'Study')} • ${escapeHtml(f.currentTopic || 'Focus Session')}`;
     } else if (isIdle) {
       badgeHtml = `<span class="friend-status-badge badge-idle">🟡 ON BREAK</span>`;
-      activityText = `Taking a break • Last active recently`;
     } else {
       badgeHtml = `<span class="friend-status-badge badge-offline">⚪ OFFLINE</span>`;
-      activityText = `Not active right now`;
     }
 
     const todayDuration = formatDurationShortHM(f.todayStudySeconds || 0);
 
     return `
       <div class="squad-friend-card ${isStudying ? 'studying' : ''}" data-friend-id="${f.id}" data-started-at="${f.sessionStartedAt || ''}">
-        <div class="friend-card-left">
-          <div class="friend-avatar">${escapeHtml(f.avatarUrl || '⚡')}</div>
-          <div class="friend-meta">
-            <div class="friend-name-row">
-              <span class="friend-username">@${escapeHtml(f.username)}</span>
+        
+        <!-- CARD TOP: PROMINENT FRIEND NAME & ACTIONS -->
+        <div class="friend-card-top-row">
+          <div class="friend-card-top-left">
+            <div class="friend-avatar">${escapeHtml(f.avatarUrl || '⚡')}</div>
+            <div class="friend-title-block">
+              <span class="friend-prominent-name">@${escapeHtml(f.username)}</span>
               ${badgeHtml}
             </div>
-            <span class="friend-activity-text">${activityText}</span>
+          </div>
+          <div class="friend-card-top-actions">
+            <button type="button" class="btn-friend-boost" data-username="${escapeHtml(f.username)}" title="Send a boost / cheer!">
+              🔥 Boost
+            </button>
+            <button type="button" class="btn-friend-remove" data-id="${f.id}" data-username="${escapeHtml(f.username)}" title="Remove Friend">
+              ✕
+            </button>
           </div>
         </div>
 
-        <div class="friend-card-right">
-          <div class="friend-telemetry-block">
-            ${isStudying ? `<span class="friend-live-timer" id="timer_friend_${f.id}">⏱️ calculating...</span>` : ''}
-            <span class="friend-today-total">🔥 ${todayDuration} today</span>
+        <!-- BIG ROUNDED RECTANGULAR BOX: PROMINENT STUDY TIME & TASK -->
+        ${isStudying ? `
+          <div class="friend-hero-study-box">
+            <div class="friend-study-box-left">
+              <span class="friend-box-micro-label">CURRENT STUDY SESSION</span>
+              <div class="friend-hero-timer-display" id="timer_friend_${f.id}">
+                00:00:00
+              </div>
+              <span class="friend-box-today-total">Today's total: <strong>${todayDuration}</strong></span>
+            </div>
+
+            <div class="friend-study-box-right">
+              <span class="friend-box-micro-label">TODAY'S ACTIVE TASK / TOPIC</span>
+              <div class="friend-task-badge-row">
+                <span class="task-badge-subject" style="background: ${color}22; color: ${color}; font-weight: 800; font-size: 11px;">
+                  ${escapeHtml(f.currentSubject || 'General')}
+                </span>
+                <span class="friend-prominent-topic" title="${escapeHtml(f.currentTopic || 'Focus Session')}">
+                  ${escapeHtml(f.currentTopic || 'Focus Session')}
+                </span>
+              </div>
+            </div>
           </div>
-          <button type="button" class="btn-friend-boost" data-username="${escapeHtml(f.username)}" title="Send a boost / cheer!">
-            🔥 Boost
-          </button>
-          <button type="button" class="btn-friend-remove" data-id="${f.id}" data-username="${escapeHtml(f.username)}" title="Remove Friend">
-            ✕
-          </button>
-        </div>
+        ` : `
+          <div class="friend-idle-study-box">
+            <div class="friend-study-box-left">
+              <span class="friend-box-micro-label">STATUS</span>
+              <span class="friend-idle-text">${isIdle ? 'Taking a short break' : 'Offline'}</span>
+            </div>
+            <div class="friend-study-box-right">
+              <span class="friend-box-micro-label">TODAY'S TOTAL STUDY</span>
+              <span class="friend-today-total-large">🔥 ${todayDuration}</span>
+            </div>
+          </div>
+        `}
+
       </div>
     `;
   }).join('');
@@ -3209,16 +3210,11 @@ function updateSquadLiveTimers() {
       const startMs = new Date(startedAt).getTime();
       if (!isNaN(startMs) && startMs > 0) {
         const elapsedSec = Math.max(0, Math.floor((now - startMs) / 1000));
-        const m = Math.floor(elapsedSec / 60);
+        const h = Math.floor(elapsedSec / 3600);
+        const m = Math.floor((elapsedSec % 3600) / 60);
         const s = elapsedSec % 60;
-        const h = Math.floor(m / 60);
-        const remM = m % 60;
 
-        if (h > 0) {
-          timerEl.textContent = `⏱️ ${h}h ${remM}m ${String(s).padStart(2, '0')}s`;
-        } else {
-          timerEl.textContent = `⏱️ ${m}m ${String(s).padStart(2, '0')}s`;
-        }
+        timerEl.textContent = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
       }
     }
   });
