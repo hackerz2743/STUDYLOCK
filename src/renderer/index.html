@@ -24,7 +24,10 @@
         <span class="segment-label">Focus Clock</span>
       </button>
       <button class="nav-segment-btn" data-tab="tabTasks">
-        <span class="segment-label">🎯 Today's Plan</span>
+        <span class="segment-label">Today's Plan</span>
+      </button>
+      <button class="nav-segment-btn" data-tab="tabAnalysis">
+        <span class="segment-label">📊 Analysis</span>
       </button>
     </nav>
 
@@ -434,23 +437,6 @@
                 </div>
               </div>
 
-              <!-- Automated Study Math / Telemetry Buffer Box -->
-              <div class="telemetry-math-card mt-4">
-                <div class="math-row">
-                  <span class="math-label">PLANNED TARGETS:</span>
-                  <span id="telemetryPlannedTime" class="math-value">0h 00m</span>
-                </div>
-                <div class="math-row mt-1">
-                  <span class="math-label">TIME UNTIL 12 AM:</span>
-                  <span id="telemetryRemainingTime" class="math-value">--</span>
-                </div>
-                <div class="math-divider mt-2"></div>
-                <div class="math-row mt-2">
-                  <span class="math-label">SCHEDULE BUFFER:</span>
-                  <span id="telemetryBufferStatus" class="math-buffer-pill positive">+0h 00m buffer</span>
-                </div>
-              </div>
-
               <!-- Ghost Action for Reality Check Trigger -->
               <div class="telemetry-footer-action mt-4">
                 <button type="button" id="btnTestFrictionPrompt" class="btn-ghost-telemetry" title="Test how the distraction friction alert looks and behaves">
@@ -595,6 +581,121 @@
       </div>
     </section>
 
+    <!-- ==================== TAB 4: DAY-WISE STUDY ANALYSIS ==================== -->
+    <section id="tabAnalysis" class="tab-pane">
+      <div class="analysis-viewport-container">
+        
+        <!-- Top Date Navigation Bar -->
+        <div class="analysis-date-bar">
+          <div class="date-bar-left">
+            <h1 class="analysis-page-title">STUDY ANALYSIS</h1>
+            <span class="analysis-page-sub">Second-by-second focus telemetry & target completion</span>
+          </div>
+
+          <div class="analysis-date-controls">
+            <button type="button" id="btnAnalysisPrevDay" class="btn-date-nav" title="Previous Day">◀</button>
+            <div class="analysis-active-date-pill">
+              <svg class="telemetry-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              <span id="analysisActiveDateText" class="active-date-label">Today · Friday, 20 Nov 2026</span>
+            </div>
+            <button type="button" id="btnAnalysisNextDay" class="btn-date-nav" title="Next Day">▶</button>
+            <button type="button" id="btnAnalysisToday" class="btn-date-today" title="Jump to Today">Today</button>
+          </div>
+        </div>
+
+        <!-- HERO PROMINENT TOTAL STUDY TIME CARD -->
+        <div class="analysis-hero-card mt-4">
+          <div class="analysis-hero-top">
+            <div class="hero-eyebrow-row">
+              <span class="pulse-cyan-dot"></span>
+              <span class="hero-eyebrow-text">TOTAL STUDY TIME LOGGED</span>
+            </div>
+            <span id="analysisDateBadge" class="analysis-date-badge">Nov 20, 2026</span>
+          </div>
+
+          <!-- Massive Prominent Tabular Counter -->
+          <div class="analysis-hero-time-cluster">
+            <div id="analysisHeroTotalTime" class="analysis-hero-digits">00h 00m 00s</div>
+            <span class="analysis-hero-sub">Exact recorded study time · Every single minute & second preserved</span>
+          </div>
+
+          <!-- Quick Metrics Ribbon -->
+          <div class="analysis-metrics-ribbon mt-4">
+            <div class="metric-ribbon-item">
+              <span class="m-ribbon-label">FOCUS SESSIONS</span>
+              <span id="analysisSessionCount" class="m-ribbon-val">0</span>
+            </div>
+            <div class="metric-ribbon-item">
+              <span class="m-ribbon-label">TARGETS COMPLETED</span>
+              <span id="analysisTargetCompletedCount" class="m-ribbon-val">0 of 0</span>
+            </div>
+            <div class="metric-ribbon-item">
+              <span class="m-ribbon-label">TOP SUBJECT</span>
+              <span id="analysisTopSubject" class="m-ribbon-val">--</span>
+            </div>
+            <div class="metric-ribbon-item">
+              <span class="m-ribbon-label">AVG SESSION BLOCK</span>
+              <span id="analysisAvgSessionDuration" class="m-ribbon-val">--</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2-COLUMN ANALYTICS WORKSPACE -->
+        <div class="analysis-grid-layout mt-4">
+          
+          <!-- LEFT COLUMN: SUBJECT BREAKDOWN & COMPLETED TARGETS -->
+          <div class="analysis-col-left">
+            
+            <!-- Subject-Wise Hours Breakdown Card -->
+            <div class="analysis-card">
+              <div class="analysis-card-header">
+                <h3 class="analysis-card-title">HOURS BY SUBJECT</h3>
+                <span class="analysis-card-hint">Total time distribution</span>
+              </div>
+
+              <div id="analysisSubjectBreakdownList" class="subject-breakdown-list mt-3">
+                <!-- Injected dynamically with exact hours, minutes, seconds & percentages -->
+              </div>
+            </div>
+
+            <!-- Completed Targets on this Date Card -->
+            <div class="analysis-card mt-4">
+              <div class="analysis-card-header">
+                <h3 class="analysis-card-title">COMPLETED TARGETS</h3>
+                <span id="analysisTargetsHeaderPill" class="analysis-mini-pill">0 Done</span>
+              </div>
+
+              <div id="analysisCompletedTargetsList" class="completed-targets-audit-list mt-3">
+                <!-- Injected dynamically -->
+              </div>
+            </div>
+
+          </div>
+
+          <!-- RIGHT COLUMN: CHRONOLOGICAL SESSION AUDIT LOG -->
+          <div class="analysis-col-right">
+            <div class="analysis-card">
+              <div class="analysis-card-header">
+                <h3 class="analysis-card-title">SESSION AUDIT LOG</h3>
+                <span class="analysis-card-hint">Individual deep-work blocks (second-precision)</span>
+              </div>
+
+              <div id="analysisSessionsLogList" class="sessions-audit-list mt-3">
+                <!-- Injected dynamically -->
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
   </main>
 
   <!-- ==================== PARENT PROOF OVERLAY (85-90% SCREEN COVERAGE IN HINGLISH) ==================== -->
@@ -680,16 +781,11 @@
       <!-- Non-Repeating Reality Check Question -->
       <h2 id="frictionQuestionText" class="friction-question-headline">What you are doing right now... is it taking you closer to your goal?</h2>
 
-      <!-- Idle Time & Midnight Countdown Stats -->
-      <div class="friction-stats-strip mt-4">
-        <div class="friction-stat-pill">
-          <span class="f-pill-label">IDLE OUTSIDE LOCK-IN</span>
-          <span id="frictionIdleTimeDisplay" class="f-pill-value">15m 00s</span>
-        </div>
-        <div class="friction-stat-pill highlight">
-          <span class="f-pill-label">LEFT TO 12 AM MIDNIGHT</span>
-          <span id="frictionMidnightTimeDisplay" class="f-pill-value">--:--:--</span>
-        </div>
+      <!-- Prominent 12 AM Midnight Countdown Hero Box -->
+      <div class="friction-midnight-hero-box mt-4">
+        <span class="f-hero-midnight-label">DEADLINE COUNTDOWN • 12:00 AM MIDNIGHT</span>
+        <div id="frictionMidnightTimeDisplay" class="f-hero-midnight-digits">00h 00m 00s</div>
+        <span class="f-hero-midnight-sub">remaining today before daily study cutoff</span>
       </div>
 
       <!-- Spotlight Next Pending Target -->
@@ -704,13 +800,13 @@
         </div>
       </div>
 
-      <!-- Action Buttons -->
+      <!-- Action Buttons (Clean & Sleek without Cartoon Emojis) -->
       <div class="dialog-actions-row mt-5">
-        <button id="btnFrictionSnooze" class="btn-dialog-secondary">
-          <span>⏳ 5 More Mins Break</span>
+        <button id="btnFrictionSnooze" class="btn-dialog-secondary btn-action-refined">
+          <span>Take 5 Min Breath</span>
         </button>
-        <button id="btnFrictionLockIn" class="btn-dialog-primary">
-          <span>🚀 Yes, I'm Ready — Lock In Now</span>
+        <button id="btnFrictionLockIn" class="btn-dialog-primary btn-action-refined">
+          <span>Lock In Now →</span>
         </button>
       </div>
 

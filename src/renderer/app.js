@@ -56,6 +56,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await setupTodayTasksSection();
   setupTargetLockInModal();
   setupDistractionFrictionEngine();
+  await setupAnalysisSection();
 });
 
 // ========================================================
@@ -97,6 +98,19 @@ function setupWindowControls() {
   document.getElementById('btnWinMax').addEventListener('click', () => {
     if (!activeSession || activeSession.clockMode !== 'locked') window.api.maximizeWindow();
   });
+
+  // Zero-Data-Loss Exit Guard: Saves down to the exact second if window is closed mid-session
+  window.addEventListener('beforeunload', () => {
+    if (activeSession && currentSessionRecord) {
+      const now = Date.now();
+      const effectiveNow = now - clockTotalPausedMs;
+      const elapsed = Math.max(1, Math.floor((effectiveNow - activeSession.startTime) / 1000));
+      currentSessionRecord.durationSeconds = elapsed;
+      currentSessionRecord.completedAt = new Date().toISOString();
+      currentSessionRecord.exitReason = 'mid_session_closed';
+      window.api.saveStudySession(currentSessionRecord);
+    }
+  });
 }
 
 // ========================================================
@@ -109,6 +123,9 @@ function switchTab(targetTabId) {
   document.querySelectorAll('.tab-pane').forEach(p => {
     p.classList.toggle('active', p.id === targetTabId);
   });
+  if (targetTabId === 'tabAnalysis') {
+    renderAnalysis();
+  }
 }
 
 function setupTabNavigation() {
@@ -783,8 +800,8 @@ function tickSession() {
   const elapsed = Math.floor((effectiveNow - activeSession.startTime) / 1000);
   activeSession.elapsedSeconds = elapsed;
 
-  // Real-time incremental autosave every 2 seconds: guarantees ZERO data loss down to the second
-  if (now - lastAutosaveTimestamp >= 2000 && currentSessionRecord) {
+  // Real-time incremental autosave every 1 second: guarantees ZERO data loss down to the exact second
+  if (now - lastAutosaveTimestamp >= 1000 && currentSessionRecord) {
     currentSessionRecord.durationSeconds = Math.max(1, elapsed);
     window.api.saveStudySession(currentSessionRecord);
     lastAutosaveTimestamp = now;
@@ -963,6 +980,9 @@ async function finishAndSaveSession(exitReason = 'target_completed') {
   if (sessionRecord.topic) {
     autoCompleteMatchingTask(sessionRecord.topic);
   }
+
+  // 6. Refresh Daily Analysis telemetry
+  renderAnalysis();
 }
 
 // ========================================================
@@ -1701,9 +1721,14 @@ window.toggleTaskCompletion = async function(taskId) {
   const task = dailyTasks.find(t => t.id === taskId);
   if (!task) return;
   task.completed = !task.completed;
+  if (task.completed) {
+    task.completedAt = new Date().toISOString();
+  } else {
+    delete task.completedAt;
+  }
   await persistTasks();
   renderTasks();
-  updateTelemetryMath();
+  renderAnalysis();
   if (task.completed) {
     showToastNotification(`🎉 Completed target: ${task.title}!`);
   }
@@ -1713,7 +1738,7 @@ window.deleteStudyTask = async function(taskId) {
   dailyTasks = dailyTasks.filter(t => t.id !== taskId);
   await persistTasks();
   renderTasks();
-  updateTelemetryMath();
+  renderAnalysis();
   showToastNotification('Target removed.');
 };
 
@@ -2052,9 +2077,10 @@ function autoCompleteMatchingTask(completedTopic) {
   const match = dailyTasks.find(t => !t.completed && t.title.toLowerCase().trim() === completedTopic.toLowerCase().trim());
   if (match) {
     match.completed = true;
+    match.completedAt = new Date().toISOString();
     persistTasks();
     renderTasks();
-    updateTelemetryMath();
+    renderAnalysis();
     showToastNotification(`🎯 Auto-completed matching target: "${match.title}"!`);
   }
 }
@@ -2190,7 +2216,7 @@ function showDistractionFrictionModal(isManualTest = false) {
 
   const midnightStats = getMidnightStats();
   if (midnightDisplay) {
-    midnightDisplay.textContent = `${midnightStats.hoursStr}h ${midnightStats.minutesStr}m left`;
+    midnightDisplay.textContent = `${midnightStats.hoursStr}h ${midnightStats.minutesStr}m ${midnightStats.secondsStr}s`;
   }
 
   // 3. Find next pending target
@@ -2291,4 +2317,270 @@ function setupDistractionFrictionEngine() {
       showDistractionFrictionModal(false);
     }
   });
+}
+
+// ========================================================
+// TAB 4: DAY-WISE STUDY ANALYSIS (Zero-Data-Loss Telemetry)
+// ========================================================
+let selectedAnalysisDate = new Date();
+
+async function setupAnalysisSection() {
+  const btnPrev = document.getElementById('btnAnalysisPrevDay');
+  const btnNext = document.getElementById('btnAnalysisNextDay');
+  const btnToday = document.getElementById('btnAnalysisToday');
+
+  if (btnPrev) {
+    btnPrev.addEventListener('click', () => {
+      selectedAnalysisDate.setDate(selectedAnalysisDate.getDate() - 1);
+      renderAnalysis();
+    });
+  }
+
+  if (btnNext) {
+    btnNext.addEventListener('click', () => {
+      const today = new Date();
+      if (selectedAnalysisDate.toDateString() !== today.toDateString()) {
+        selectedAnalysisDate.setDate(selectedAnalysisDate.getDate() + 1);
+        renderAnalysis();
+      }
+    });
+  }
+
+  if (btnToday) {
+    btnToday.addEventListener('click', () => {
+      selectedAnalysisDate = new Date();
+      renderAnalysis();
+    });
+  }
+
+  await renderAnalysis();
+}
+
+function formatAnalysisDateLabel(date) {
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+
+  const isToday = date.toDateString() === today.toDateString();
+  const isYesterday = date.toDateString() === yesterday.toDateString();
+
+  const options = { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' };
+  const formatted = date.toLocaleDateString('en-US', options);
+
+  if (isToday) return `Today · ${formatted}`;
+  if (isYesterday) return `Yesterday · ${formatted}`;
+  return formatted;
+}
+
+function isSameLocalDate(isoString, targetDate) {
+  if (!isoString) return false;
+  const d = new Date(isoString);
+  return d.getFullYear() === targetDate.getFullYear() &&
+         d.getMonth() === targetDate.getMonth() &&
+         d.getDate() === targetDate.getDate();
+}
+
+function formatExactDurationHMS(totalSeconds) {
+  if (!totalSeconds || totalSeconds <= 0) return '00h 00m 00s';
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  const hStr = String(hours).padStart(2, '0');
+  const mStr = String(minutes).padStart(2, '0');
+  const sStr = String(seconds).padStart(2, '0');
+
+  return `${hStr}h ${mStr}m ${sStr}s`;
+}
+
+function formatExactDurationSmart(totalSeconds) {
+  if (!totalSeconds || totalSeconds <= 0) return '0s';
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${seconds}s`;
+  }
+  if (minutes > 0) {
+    return `${minutes}m ${seconds}s`;
+  }
+  return `${seconds}s`;
+}
+
+async function renderAnalysis() {
+  try {
+    const freshData = await window.api.getStudyData();
+    if (freshData) studyData = freshData;
+  } catch (e) {}
+
+  const dateTextEl = document.getElementById('analysisActiveDateText');
+  const dateBadgeEl = document.getElementById('analysisDateBadge');
+  const btnNext = document.getElementById('btnAnalysisNextDay');
+  const heroTimeEl = document.getElementById('analysisHeroTotalTime');
+  const sessionCountEl = document.getElementById('analysisSessionCount');
+  const targetCompletedEl = document.getElementById('analysisTargetCompletedCount');
+  const topSubjectEl = document.getElementById('analysisTopSubject');
+  const avgDurationEl = document.getElementById('analysisAvgSessionDuration');
+  const subjectListEl = document.getElementById('analysisSubjectBreakdownList');
+  const targetsHeaderPillEl = document.getElementById('analysisTargetsHeaderPill');
+  const targetsListEl = document.getElementById('analysisCompletedTargetsList');
+  const sessionsLogListEl = document.getElementById('analysisSessionsLogList');
+
+  // Update date controls
+  const today = new Date();
+  const isToday = selectedAnalysisDate.toDateString() === today.toDateString();
+  if (dateTextEl) dateTextEl.textContent = formatAnalysisDateLabel(selectedAnalysisDate);
+  if (dateBadgeEl) {
+    dateBadgeEl.textContent = selectedAnalysisDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  if (btnNext) {
+    btnNext.disabled = isToday;
+  }
+
+  // Filter Sessions for selected local date
+  const allSessions = (studyData && studyData.sessions) ? studyData.sessions : [];
+  const daySessions = allSessions.filter(s => isSameLocalDate(s.completedAt, selectedAnalysisDate));
+
+  // Compute Total Study Time down to the second
+  const totalDaySeconds = daySessions.reduce((acc, s) => acc + (s.durationSeconds || 0), 0);
+  if (heroTimeEl) {
+    heroTimeEl.textContent = formatExactDurationHMS(totalDaySeconds);
+  }
+
+  // Session Count & Average Duration
+  const sessionCount = daySessions.length;
+  if (sessionCountEl) sessionCountEl.textContent = sessionCount;
+
+  if (avgDurationEl) {
+    if (sessionCount > 0) {
+      const avgSecs = Math.round(totalDaySeconds / sessionCount);
+      avgDurationEl.textContent = formatExactDurationSmart(avgSecs);
+    } else {
+      avgDurationEl.textContent = '--';
+    }
+  }
+
+  // Compute Subject-Wise Distribution
+  const subjectTotals = {};
+  daySessions.forEach(s => {
+    const subj = s.subject || 'Other';
+    subjectTotals[subj] = (subjectTotals[subj] || 0) + (s.durationSeconds || 0);
+  });
+
+  // Determine top subject
+  let topSubj = '--';
+  let topSubjTime = 0;
+  for (const [subj, secs] of Object.entries(subjectTotals)) {
+    if (secs > topSubjTime) {
+      topSubjTime = secs;
+      topSubj = subj;
+    }
+  }
+  if (topSubjectEl) topSubjectEl.textContent = topSubjTime > 0 ? topSubj : '--';
+
+  // Render Subject Breakdown Bars
+  if (subjectListEl) {
+    const subjects = ['Physics', 'Chemistry', 'Maths', 'Other'];
+    Object.keys(subjectTotals).forEach(subj => {
+      if (!subjects.includes(subj)) subjects.push(subj);
+    });
+
+    if (totalDaySeconds === 0) {
+      subjectListEl.innerHTML = `
+        <div class="audit-empty-hint">No subject hours logged for this date.</div>
+      `;
+    } else {
+      subjectListEl.innerHTML = subjects.map(subj => {
+        const secs = subjectTotals[subj] || 0;
+        const pct = totalDaySeconds > 0 ? Math.round((secs / totalDaySeconds) * 100) : 0;
+        const color = SUBJECT_COLORS[subj] || '#94a3b8';
+        return `
+          <div class="subject-breakdown-row">
+            <div class="subject-row-meta">
+              <div class="subject-row-left">
+                <span class="subject-dot-color" style="background: ${color};"></span>
+                <span class="subject-row-name">${subj}</span>
+              </div>
+              <div class="subject-row-right">
+                <span class="subject-row-time">${formatExactDurationSmart(secs)}</span>
+                <span class="subject-row-pct">${pct}%</span>
+              </div>
+            </div>
+            <div class="subject-bar-track">
+              <div class="subject-bar-fill" style="width: ${pct}%; background: ${color};"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  // Completed Targets on this Date
+  const allTasks = dailyTasks || [];
+  const completedTasksOnDate = allTasks.filter(t => t.completed && isSameLocalDate(t.completedAt || t.createdAt, selectedAnalysisDate));
+  const totalTasksOnDate = allTasks.filter(t => isSameLocalDate(t.createdAt, selectedAnalysisDate));
+
+  if (targetCompletedEl) {
+    targetCompletedEl.textContent = `${completedTasksOnDate.length} of ${totalTasksOnDate.length || completedTasksOnDate.length}`;
+  }
+  if (targetsHeaderPillEl) {
+    targetsHeaderPillEl.textContent = `${completedTasksOnDate.length} Completed`;
+  }
+
+  if (targetsListEl) {
+    if (completedTasksOnDate.length === 0) {
+      targetsListEl.innerHTML = `
+        <div class="audit-empty-hint">No completed targets recorded for this date.</div>
+      `;
+    } else {
+      targetsListEl.innerHTML = completedTasksOnDate.map(t => {
+        const color = SUBJECT_COLORS[t.subject] || '#38bdf8';
+        return `
+          <div class="completed-audit-item">
+            <div class="audit-target-left">
+              <span class="audit-check-icon">✓</span>
+              <span class="task-badge-subject" style="background: ${color}22; color: ${color};">${t.subject}</span>
+              <span class="audit-target-title" title="${escapeHtml(t.title)}">${escapeHtml(t.title)}</span>
+            </div>
+            <span class="audit-target-duration">⏱️ ${t.minutes}m</span>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  // Chronological Session Audit Log
+  if (sessionsLogListEl) {
+    if (daySessions.length === 0) {
+      sessionsLogListEl.innerHTML = `
+        <div class="audit-empty-hint">No focus sessions recorded on this date.<br>Start a Lock-In session in Study Player or Focus Clock to log study time!</div>
+      `;
+    } else {
+      sessionsLogListEl.innerHTML = daySessions.map(s => {
+        const color = SUBJECT_COLORS[s.subject] || '#38bdf8';
+        const dateObj = new Date(s.completedAt);
+        const timeStr = !isNaN(dateObj.getTime()) ? dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '--';
+        const isCompletedFull = s.exitReason === 'completed' || s.exitReason === 'normal_closed' || s.exitReason === '100%_complete';
+        const reasonBadge = isCompletedFull ? `<span style="color: #10b981; font-size: 10px; font-weight: 800;">✓ Completed</span>` : `<span style="color: #f59e0b; font-size: 10px; font-weight: 800;">⚡ Logged</span>`;
+
+        return `
+          <div class="session-audit-card">
+            <div class="session-audit-main">
+              <span class="session-audit-topic" title="${escapeHtml(s.topic)}">${escapeHtml(s.topic)}</span>
+              <div class="session-audit-tags">
+                <span class="task-badge-subject" style="background: ${color}22; color: ${color};">${s.subject || 'General'}</span>
+                <span class="session-audit-mode">${escapeHtml(s.mode || 'Immersion')}</span>
+                ${reasonBadge}
+              </div>
+            </div>
+            <div class="session-audit-time-block">
+              <span class="session-audit-duration">${formatExactDurationSmart(s.durationSeconds || 0)}</span>
+              <span class="session-audit-timestamp">${timeStr}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
 }
