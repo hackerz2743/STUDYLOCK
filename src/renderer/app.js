@@ -994,14 +994,19 @@ function tickSession() {
 
   // 3. Update Padhai Proof Parent Overlay if open
   if (isParentProofOpen) {
-    updateParentProofContent();
+    try {
+      updateParentProofContent();
+    } catch (e) {
+      console.error('Error ticking parent proof:', e);
+    }
   }
 
   rafTimerId = requestAnimationFrame(tickSession);
 }
 
-// When Target Timer Finishes (e.g., 45m completed)
+// When Target Timer Finishes (e.g., 45m or 1m completed)
 function handleTargetTimerExpired() {
+  exitWebviewFullscreenIfActive();
   pauseCurrentPlayer();
 
   if (currentSessionRecord && activeSession) {
@@ -1009,26 +1014,38 @@ function handleTargetTimerExpired() {
     window.api.saveStudySession(currentSessionRecord);
   }
 
-  document.getElementById('expirySubject').textContent = activeSession.subject;
-  document.getElementById('expiryDuration').textContent = `${formatDurationSmart(activeSession.elapsedSeconds)} Completed`;
-  document.getElementById('timerExpiryModal').classList.remove('hidden');
+  const subEl = document.getElementById('expirySubject');
+  if (subEl) subEl.textContent = activeSession.subject || 'Physics';
+  const durEl = document.getElementById('expiryDuration');
+  if (durEl) durEl.textContent = `${formatDurationSmart(activeSession.elapsedSeconds)} Completed`;
+
+  const modal = document.getElementById('timerExpiryModal');
+  if (modal) modal.classList.remove('hidden');
 }
 
 function setupTimerExpiryModal() {
-  document.getElementById('btnExpiryExtend').addEventListener('click', () => {
-    if (activeSession) {
-      activeSession.targetMinutes += 15;
-      activeSession.isExpired = false;
-      document.getElementById('timerExpiryModal').classList.add('hidden');
-      resumeCurrentPlayer();
-      tickSession();
-    }
-  });
+  const btnExtend = document.getElementById('btnExpiryExtend');
+  if (btnExtend) {
+    btnExtend.addEventListener('click', () => {
+      if (activeSession) {
+        activeSession.targetMinutes += 15;
+        activeSession.isExpired = false;
+        const modal = document.getElementById('timerExpiryModal');
+        if (modal) modal.classList.add('hidden');
+        resumeCurrentPlayer();
+        tickSession();
+      }
+    });
+  }
 
-  document.getElementById('btnExpiryFinish').addEventListener('click', () => {
-    document.getElementById('timerExpiryModal').classList.add('hidden');
-    finishAndSaveSession('target_completed');
-  });
+  const btnFinish = document.getElementById('btnExpiryFinish');
+  if (btnFinish) {
+    btnFinish.addEventListener('click', () => {
+      const modal = document.getElementById('timerExpiryModal');
+      if (modal) modal.classList.add('hidden');
+      finishAndSaveSession('target_completed');
+    });
+  }
 }
 
 async function finishAndSaveSession(exitReason = 'target_completed') {
@@ -1212,58 +1229,79 @@ function closeParentProof() {
 function updateParentProofContent() {
   if (!activeSession) return;
 
-  const subject = activeSession.subject || 'General Study';
-  const activeTabName = currentDeck === 'youtube' ? 'YouTube Lecture' : 'RaySensei';
-  const elapsed = activeSession.elapsedSeconds || 1;
-  const targetMinutes = activeSession.targetMinutes || 45;
-  const targetSec = targetMinutes * 60;
-  const remainingSec = Math.max(0, targetSec - elapsed);
+  try {
+    const subject = activeSession.subject || 'General Study';
+    const activeTabName = currentDeck === 'youtube' ? 'YouTube Lecture' : 'RaySensei';
+    const topic = activeSession.topic || 'Lecture Immersion';
+    const elapsed = Math.max(1, activeSession.elapsedSeconds || 1);
+    const targetMinutes = activeSession.targetMinutes || 45;
+    const targetSec = targetMinutes * 60;
+    const remainingSec = Math.max(0, targetSec - elapsed);
 
-  const elapsedMinutes = Math.floor(elapsed / 60);
-  const remainingMinutes = Math.ceil(remainingSec / 60);
+    const elapsedMinutes = Math.floor(elapsed / 60);
+    const elapsedSecsRem = elapsed % 60;
 
-  const subEl = document.getElementById('parentProofSubject');
-  const topicEl = document.getElementById('parentProofTopic');
-  const elapEl = document.getElementById('parentProofElapsed');
-  const remEl = document.getElementById('parentProofRemaining');
-  const targetEl = document.getElementById('parentProofTarget');
-  const barEl = document.getElementById('parentProofProgressBar');
+    const remainingMinutes = Math.floor(remainingSec / 60);
+    const remainingSecsRem = remainingSec % 60;
 
-  if (subEl) subEl.textContent = subject.toUpperCase();
-  if (topicEl) topicEl.textContent = `${activeSession.topic || 'Lecture'} (${activeTabName})`;
-  const msgEl = document.getElementById('parentProofDynamicMessage');
+    const subEl = document.getElementById('parentProofSubject');
+    const topicEl = document.getElementById('parentProofTopic');
+    const elapEl = document.getElementById('parentProofElapsed');
+    const remEl = document.getElementById('parentProofRemaining');
+    const targetEl = document.getElementById('parentProofTarget');
+    const barEl = document.getElementById('parentProofProgressBar');
+    const msgEl = document.getElementById('parentProofDynamicMessage');
 
-  if (subEl) subEl.textContent = subject.toUpperCase();
-  if (topicEl) topicEl.textContent = topic;
+    if (subEl) subEl.textContent = subject.toUpperCase();
+    if (topicEl) topicEl.textContent = `${topic} (${activeTabName})`;
 
-  if (elapEl) {
-    elapEl.textContent = elapsedMinutes > 0 ? `${elapsedMinutes} Minute (${elapsed % 60}s)` : `${elapsed % 60} Second`;
-  }
-  if (remEl) {
-    remEl.textContent = `${remainingMinutes} Minute`;
-  }
-  if (targetEl) {
-    targetEl.textContent = `Target: ${targetMinutes} Minute`;
-  }
-
-  if (barEl) {
-    const pct = targetSec > 0 ? Math.min(100, (elapsed / targetSec) * 100) : 100;
-    barEl.style.width = `${pct}%`;
-  }
-
-  // Dynamic Personal Hinglish Milestone Message for Parents
-  if (msgEl) {
-    if (elapsedMinutes < 5) {
-      msgEl.textContent = `Namaste Uncle / Aunty ji 🙏\n\nAapke bete ne abhi padhai shuru ki hai. Laptop par ${subject} ka lecture chalu ho chuka hai aur screen lock hai taaki dhyan na bhatke.`;
-    } else if (elapsedMinutes < 15) {
-      msgEl.textContent = `Aapke bete ne 10+ minute lagatar dhyan se padhai kar li hai.\n\nKoi game ya timepass nahi chal raha hai, poora dhyan ${subject} ke lecture aur notes par hai.`;
-    } else if (elapsedMinutes < 30) {
-      msgEl.textContent = `Bohat badhiya! Aapka beta lagbhag aadhe ghante se bina kisi rukawat ke padh raha hai.\n\nAap bilkul chinta mat kijiye, poori imandari se lecture complete ho raha hai.`;
-    } else if (elapsedMinutes < 50) {
-      msgEl.textContent = `Zabardast mehnat! 40+ minute se continuous focus ke saath padhai chal rahi hai.\n\nAapka beta apne target ke bohot kareeb hai aur bohot serious mehnat kar raha hai.`;
-    } else {
-      msgEl.textContent = `Kamaal ka focus! 50+ minute se continuous padhai chal rahi hai.\n\nAapke bete ne aaj bohot acchi mehnat ki hai. Session bas complete hone hi wala hai.`;
+    // Exact, live dynamic elapsed time
+    if (elapEl) {
+      if (elapsed < 60) {
+        elapEl.textContent = `${elapsed} Second${elapsed === 1 ? '' : 's'}`;
+      } else {
+        elapEl.textContent = `${elapsedMinutes}m ${elapsedSecsRem}s`;
+      }
     }
+
+    // Exact, live dynamic remaining time
+    if (remEl) {
+      if (remainingSec <= 0) {
+        remEl.textContent = '0s (Completed)';
+      } else if (remainingSec < 60) {
+        remEl.textContent = `${remainingSec} Second${remainingSec === 1 ? '' : 's'}`;
+      } else {
+        remEl.textContent = `${remainingMinutes}m ${remainingSecsRem}s`;
+      }
+    }
+
+    if (targetEl) {
+      targetEl.textContent = `Target: ${targetMinutes} Minute${targetMinutes === 1 ? '' : 's'}`;
+    }
+
+    if (barEl) {
+      const pct = targetSec > 0 ? Math.min(100, (elapsed / targetSec) * 100) : 100;
+      barEl.style.width = `${pct}%`;
+    }
+
+    // Dynamic Personal Hinglish Milestone Message for Parents
+    if (msgEl) {
+      if (elapsed < 60) {
+        msgEl.textContent = `Namaste Uncle / Aunty ji 🙏\n\nAapke bete ne abhi padhai shuru ki hai (${elapsed} seconds). Laptop par ${subject} ka lecture chalu ho chuka hai aur screen lock hai taaki dhyan na bhatke.`;
+      } else if (elapsedMinutes < 5) {
+        msgEl.textContent = `Namaste Uncle / Aunty ji 🙏\n\nAapke bete ne padhai shuru kar di hai (${elapsedMinutes} minute se). Laptop par ${subject} ka lecture chalu hai aur screen poori tarah locked hai.`;
+      } else if (elapsedMinutes < 15) {
+        msgEl.textContent = `Aapke bete ne 10+ minute lagatar dhyan se padhai kar li hai.\n\nKoi game ya timepass nahi chal raha hai, poora dhyan ${subject} ke lecture aur notes par hai.`;
+      } else if (elapsedMinutes < 30) {
+        msgEl.textContent = `Bohat badhiya! Aapka beta lagbhag aadhe ghante se bina kisi rukawat ke padh raha hai.\n\nAap bilkul chinta mat kijiye, poori imandari se lecture complete ho raha hai.`;
+      } else if (elapsedMinutes < 50) {
+        msgEl.textContent = `Zabardast mehnat! 40+ minute se continuous focus ke saath padhai chal rahi hai.\n\nAapka beta apne target ke bohot kareeb hai aur bohot serious mehnat kar raha hai.`;
+      } else {
+        msgEl.textContent = `Kamaal ka focus! 50+ minute se continuous padhai chal rahi hai.\n\nAapke bete ne aaj bohot acchi mehnat ki hai. Session bas complete hone hi wala hai.`;
+      }
+    }
+  } catch (err) {
+    console.error('Safe guard: error updating parent proof overlay:', err);
   }
 }
 

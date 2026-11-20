@@ -422,21 +422,21 @@
       <div class="parent-time-grid mt-4">
         <div class="parent-time-box">
           <span class="parent-time-label">PADHAI KARTE HUE</span>
-          <div id="parentProofElapsed" class="parent-time-val">22 Minute</div>
+          <div id="parentProofElapsed" class="parent-time-val">0s</div>
           <span class="parent-time-sub">Continuous study time</span>
         </div>
 
         <div class="parent-time-box highlight-time">
           <span class="parent-time-label">BACHA HUA TIME</span>
-          <div id="parentProofRemaining" class="parent-time-val">23 Minute</div>
-          <span id="parentProofTarget" class="parent-time-sub">Target: 45 Minute</span>
+          <div id="parentProofRemaining" class="parent-time-val">--</div>
+          <span id="parentProofTarget" class="parent-time-sub">Target: --</span>
         </div>
       </div>
 
       <!-- Progress Bar -->
       <div class="parent-progress-wrap mt-4">
         <div class="parent-progress-track">
-          <div id="parentProofProgressBar" class="parent-progress-bar" style="width: 48%;"></div>
+          <div id="parentProofProgressBar" class="parent-progress-bar" style="width: 0%;"></div>
         </div>
       </div>
 
@@ -446,7 +446,7 @@
           <span>Uncle / Aunty ji ke liye Sandesh:</span>
         </div>
         <div id="parentProofDynamicMessage" class="parent-message-text">
-          "Aapke bete ne 20+ minute bina kisi rukawat ke padhai kar li hai. Koi game ya timepass nahi chal raha hai, poora dhyan lecture aur notes par hai. Aap bilkul chinta mat kijiye."
+          "Aapke bete ne abhi padhai shuru ki hai. Screen poori tarah locked hai taaki dhyan na bhatke."
         </div>
       </div>
 
@@ -464,9 +464,10 @@
 
   <!-- ==================== TIMER EXPIRY MODAL (CONTINUE OR FINISH) ==================== -->
   <div id="timerExpiryModal" class="modal-overlay hidden">
-    <div class="macos-dialog-card">
-      <h2>Focus Target Completed</h2>
-      <p class="dialog-desc">You've reached your scheduled focus duration. Would you like to extend your session or finish and log your deep work?</p>
+    <div class="macos-dialog-card modal-celebrate-card">
+      <div class="celebrate-badge-icon">🎉</div>
+      <h2>Shabaash! Target Completed!</h2>
+      <p class="dialog-desc">You gave 100% focused attention to this study session without distractions. What would you like to do next?</p>
 
       <div class="dialog-stats-pill">
         <span id="expirySubject" class="badge-subject">Physics</span>
@@ -474,7 +475,7 @@
       </div>
 
       <div class="dialog-actions-row mt-6">
-        <button id="btnExpiryExtend" class="btn-dialog-primary">Continue (+15m)</button>
+        <button id="btnExpiryExtend" class="btn-dialog-primary">Continue Watching (+15m)</button>
         <button id="btnExpiryFinish" class="btn-dialog-secondary">Finish & Log Session</button>
       </div>
     </div>

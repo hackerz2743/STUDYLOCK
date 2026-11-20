@@ -1677,12 +1677,25 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.85);
-  z-index: 3000;
+  background: rgba(5, 8, 14, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  z-index: 9999999 !important;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
+}
+
+.celebrate-badge-icon {
+  font-size: 46px;
+  line-height: 1;
+  margin-bottom: 14px;
+}
+
+.modal-celebrate-card {
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.95), 0 0 50px rgba(56, 189, 248, 0.2);
 }
 
 .macos-dialog-card {
