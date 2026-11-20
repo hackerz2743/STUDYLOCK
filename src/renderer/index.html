@@ -43,8 +43,8 @@
             <div class="cockpit-card">
               <div class="cockpit-header">
                 <h2 class="cockpit-title">SESSION SETUP</h2>
-                <button type="button" id="btnOpenRaySenseiAuth" class="btn-text-subtle" title="Sign in to your RaySensei / Google account once">
-                  Sign In: RaySensei
+                <button type="button" id="btnOpenSyncRaySensei" class="btn-text-subtle" title="Sync RaySensei login from Chrome in 10 seconds">
+                  ⚡ Sync RaySensei
                 </button>
               </div>
 
@@ -499,6 +499,58 @@
       <div class="dialog-actions-row mt-6">
         <button id="btnCancelEmergencyKey" class="btn-dialog-cancel">Return to Study</button>
         <button id="btnConfirmEmergencyKey" class="btn-dialog-danger" disabled>Unlock Session</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== RAY SENSEI 10-SEC CHROME SYNC MODAL ==================== -->
+  <div id="syncRaySenseiModal" class="modal-overlay hidden">
+    <div class="macos-dialog-card dialog-card-large">
+      <div class="sync-modal-header text-left">
+        <span class="sync-modal-badge">10-SECOND LOGIN SYNC</span>
+        <h2>Sync RaySensei Login from Chrome</h2>
+        <p class="dialog-desc mt-1">Bypass all Google security blocks permanently by copying your active RaySensei login session directly from Chrome.</p>
+      </div>
+
+      <div class="sync-steps-container mt-4 text-left">
+        <!-- Step 1 -->
+        <div class="sync-step-item">
+          <div class="sync-step-num">1</div>
+          <div class="sync-step-content">
+            <span class="sync-step-text">Make sure you are logged into <strong>app.raysensei.com</strong> in your normal Google Chrome browser.</span>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="sync-step-item">
+          <div class="sync-step-num">2</div>
+          <div class="sync-step-content">
+            <span class="sync-step-text">On that RaySensei tab in Chrome, press <strong>F12</strong>, click <strong>Console</strong>, paste this command, and press <strong>Enter</strong>:</span>
+            <div class="sync-code-box mt-2">
+              <code id="syncCommandCode">copy(JSON.stringify(localStorage))</code>
+              <button type="button" id="btnCopySyncCommand" class="btn-copy-code" title="Copy command to clipboard">Copy</button>
+            </div>
+            <span class="sync-step-hint">Chrome will instantly copy your login credentials to your clipboard.</span>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="sync-step-item">
+          <div class="sync-step-num">3</div>
+          <div class="sync-step-content">
+            <span class="sync-step-text">Come back here and click:</span>
+            <div class="mt-2">
+              <button type="button" id="btnPasteAndSyncRaySensei" class="btn-sync-action">
+                ⚡ Paste & Sync Session
+              </button>
+            </div>
+            <div id="syncStatusFeedback" class="sync-feedback-text hidden"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dialog-actions-row mt-6">
+        <button id="btnCloseSyncRaySensei" class="btn-dialog-cancel">Close</button>
       </div>
     </div>
   </div>

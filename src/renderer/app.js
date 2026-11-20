@@ -231,12 +231,130 @@ function setupPlayerSection() {
   const btnEmerg = document.getElementById('btnPlayerEmergency');
   if (btnEmerg) btnEmerg.addEventListener('click', openEmergencyModal);
 
-  // Setup Screen: 1-Click RaySensei Account Sign-In
-  const btnRayAuth = document.getElementById('btnOpenRaySenseiAuth');
-  if (btnRayAuth) {
-    btnRayAuth.addEventListener('click', () => {
-      if (window.api && window.api.openRaySenseiLogin) {
-        window.api.openRaySenseiLogin();
+  // Setup Screen: 10-Second Chrome Sync for RaySensei
+  setupRaySenseiSyncUI();
+}
+
+function setupRaySenseiSyncUI() {
+  const btnOpenSync = document.getElementById('btnOpenSyncRaySensei');
+  const btnCloseSync = document.getElementById('btnCloseSyncRaySensei');
+  const modal = document.getElementById('syncRaySenseiModal');
+  const btnCopyCmd = document.getElementById('btnCopySyncCommand');
+  const btnPasteSync = document.getElementById('btnPasteAndSyncRaySensei');
+  const feedback = document.getElementById('syncStatusFeedback');
+
+  // Check if already synced
+  if (btnOpenSync && localStorage.getItem('studylock_raysensei_session')) {
+    btnOpenSync.textContent = '✓ RaySensei Synced';
+    btnOpenSync.style.color = '#34d399';
+  }
+
+  if (btnOpenSync && modal) {
+    btnOpenSync.addEventListener('click', () => {
+      if (feedback) {
+        feedback.className = 'sync-feedback-text hidden';
+        feedback.textContent = '';
+      }
+      modal.classList.remove('hidden');
+    });
+  }
+
+  if (btnCloseSync && modal) {
+    btnCloseSync.addEventListener('click', () => {
+      modal.classList.add('hidden');
+    });
+  }
+
+  if (btnCopyCmd) {
+    btnCopyCmd.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText('copy(JSON.stringify(localStorage))');
+        const origText = btnCopyCmd.textContent;
+        btnCopyCmd.textContent = 'Copied!';
+        btnCopyCmd.style.color = '#34d399';
+        setTimeout(() => {
+          btnCopyCmd.textContent = origText;
+          btnCopyCmd.style.color = '';
+        }, 2000);
+      } catch (err) {
+        console.error('Clipboard copy failed:', err);
+      }
+    });
+  }
+
+  if (btnPasteSync) {
+    btnPasteSync.addEventListener('click', async () => {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (!text || text.trim() === '') {
+          if (feedback) {
+            feedback.className = 'sync-feedback-text sync-feedback-error';
+            feedback.textContent = 'Clipboard is empty. Please run the command in Chrome console first.';
+          }
+          return;
+        }
+
+        let parsed = null;
+        try {
+          parsed = JSON.parse(text.trim());
+        } catch (e) {
+          if (feedback) {
+            feedback.className = 'sync-feedback-text sync-feedback-error';
+            feedback.textContent = 'Invalid session data in clipboard. Please copy directly from Chrome console.';
+          }
+          return;
+        }
+
+        if (typeof parsed !== 'object' || Object.keys(parsed).length === 0) {
+          if (feedback) {
+            feedback.className = 'sync-feedback-text sync-feedback-error';
+            feedback.textContent = 'No storage keys found. Make sure you are signed in on app.raysensei.com in Chrome.';
+          }
+          return;
+        }
+
+        // Save locally in StudyLock
+        localStorage.setItem('studylock_raysensei_session', JSON.stringify(parsed));
+
+        // Inject into persistent partition
+        if (window.api && window.api.injectRaySenseiSession) {
+          await window.api.injectRaySenseiSession(JSON.stringify(parsed));
+        }
+
+        // Inject into live RaySensei webview if loaded
+        if (rayWebviewEl) {
+          rayWebviewEl.executeJavaScript(`
+            try {
+              const data = ${JSON.stringify(parsed)};
+              for (const [k, v] of Object.entries(data)) {
+                localStorage.setItem(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
+              }
+              window.location.reload();
+            } catch (e) {}
+          `).catch(() => {});
+        }
+
+        if (feedback) {
+          feedback.className = 'sync-feedback-text sync-feedback-success';
+          feedback.textContent = '🎉 RaySensei login session synced successfully! You are logged in.';
+        }
+
+        if (btnOpenSync) {
+          btnOpenSync.textContent = '✓ RaySensei Synced';
+          btnOpenSync.style.color = '#34d399';
+        }
+
+        showToastNotification('✓ RaySensei login synced from Chrome! Account ready.');
+
+        setTimeout(() => {
+          if (modal) modal.classList.add('hidden');
+        }, 1800);
+      } catch (err) {
+        console.error('Paste sync error:', err);
+        if (feedback) {
+          feedback.className = 'sync-feedback-text sync-feedback-error';
+          feedback.textContent = 'Failed to read clipboard: ' + err.message;
+        }
       }
     });
   }
@@ -542,6 +660,30 @@ function initDedicatedDualDeck(videoId) {
       }
     } catch (err) {
       e.preventDefault();
+    }
+  });
+
+  // Automatically inject synced login credentials on load
+  rayWv.addEventListener('dom-ready', () => {
+    const saved = localStorage.getItem('studylock_raysensei_session');
+    if (saved) {
+      rayWv.executeJavaScript(`
+        try {
+          const raw = ${JSON.stringify(saved)};
+          const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+          let updated = false;
+          for (const [k, v] of Object.entries(parsed)) {
+            const strVal = typeof v === 'object' ? JSON.stringify(v) : String(v);
+            if (localStorage.getItem(k) !== strVal) {
+              localStorage.setItem(k, strVal);
+              updated = true;
+            }
+          }
+          if (updated) {
+            window.location.reload();
+          }
+        } catch (e) {}
+      `).catch(() => {});
     }
   });
 

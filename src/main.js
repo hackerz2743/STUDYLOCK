@@ -7,6 +7,7 @@ app.commandLine.appendSwitch('enable-gpu-rasterization');
 app.commandLine.appendSwitch('ignore-gpu-blocklist');
 app.commandLine.appendSwitch('high-dpi-support', '1');
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');
 
 // Standard modern Microsoft Edge on Windows User-Agent (Bypasses Google's embedded browser block)
 const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0';
@@ -329,6 +330,49 @@ ipcMain.handle('open-raysensei-login', async () => {
       }
     };
   });
+});
+
+// Headless Session Injector for 10-Second Chrome Sync
+ipcMain.handle('inject-raysensei-session', async (event, sessionData) => {
+  try {
+    const tempWin = new BrowserWindow({
+      show: false,
+      width: 400,
+      height: 300,
+      webPreferences: {
+        partition: 'persist:studylock_session',
+        nodeIntegration: false,
+        contextIsolation: true
+      }
+    });
+
+    await tempWin.loadURL('https://app.raysensei.com/');
+
+    const serializedData = typeof sessionData === 'string' ? sessionData : JSON.stringify(sessionData);
+
+    await tempWin.webContents.executeJavaScript(`
+      try {
+        const raw = ${JSON.stringify(serializedData)};
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        for (const [key, val] of Object.entries(parsed)) {
+          localStorage.setItem(key, typeof val === 'object' ? JSON.stringify(val) : String(val));
+        }
+      } catch (e) {
+        console.error('Storage injection failed:', e);
+      }
+    `);
+
+    setTimeout(() => {
+      try {
+        if (!tempWin.isDestroyed()) tempWin.destroy();
+      } catch (e) {}
+    }, 1200);
+
+    return { success: true };
+  } catch (err) {
+    console.error('Failed to inject RaySensei session:', err);
+    return { success: false, error: err.message };
+  }
 });
 
 // Single instance lock
