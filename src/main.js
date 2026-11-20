@@ -306,15 +306,18 @@ if (!gotTheLock) {
   });
 
   app.whenReady().then(() => {
-    // Attach valid Referer for youtube-nocookie embed requests to ensure error-free playback
-    session.defaultSession.webRequest.onBeforeSendHeaders(
-      { urls: ['*://*.youtube-nocookie.com/*', '*://*.youtube.com/embed/*'] },
-      (details, callback) => {
-        details.requestHeaders['Referer'] = 'https://www.youtube.com/';
-        details.requestHeaders['User-Agent'] = CHROME_UA;
-        callback({ cancel: false, requestHeaders: details.requestHeaders });
-      }
-    );
+    // Configure default and isolated partitions with pristine Chrome User-Agent for Google/YouTube OAuth login
+    [session.defaultSession, session.fromPartition('persist:studylock_yt'), session.fromPartition('persist:studylock_workspaces')].forEach(ses => {
+      ses.setUserAgent(CHROME_UA);
+      ses.webRequest.onBeforeSendHeaders(
+        { urls: ['*://*.youtube-nocookie.com/*', '*://*.youtube.com/embed/*'] },
+        (details, callback) => {
+          details.requestHeaders['Referer'] = 'https://www.youtube.com/';
+          details.requestHeaders['User-Agent'] = CHROME_UA;
+          callback({ cancel: false, requestHeaders: details.requestHeaders });
+        }
+      );
+    });
 
     createWindow();
 

@@ -229,19 +229,40 @@ function renderPreviewPlayer(videoId) {
   webview.setAttribute('partition', 'persist:studylock_yt');
   webview.setAttribute('allowfullscreen', 'true');
   webview.setAttribute('useragent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36');
-  webview.setAttribute('allowpopups', 'false');
+  webview.setAttribute('allowpopups', 'true');
   webview.style.width = '100%';
   webview.style.height = '100%';
   webview.style.border = 'none';
   webview.src = `https://www.youtube.com/watch?v=${videoId}&autoplay=1`;
 
-  // Block roaming to other videos
+  // Allow Google & YouTube account login while preventing roaming to other videos
   webview.addEventListener('will-navigate', (e) => {
-    const targetId = extractYouTubeId(e.url || '');
-    if (targetId !== videoId) e.preventDefault();
+    try {
+      const navUrl = new URL(e.url);
+      const navHost = navUrl.hostname.toLowerCase();
+      const isAuthHost = navHost === 'accounts.google.com' ||
+                         navHost === 'accounts.youtube.com' ||
+                         navHost.endsWith('.google.com') ||
+                         navHost.endsWith('.youtube.com');
+      if (isAuthHost && !navUrl.pathname.startsWith('/watch')) {
+        return; // Allow login navigation
+      }
+      const targetId = extractYouTubeId(e.url || '');
+      if (targetId && targetId !== videoId) e.preventDefault();
+    } catch (err) {}
   });
 
-  webview.addEventListener('new-window', (e) => e.preventDefault());
+  webview.addEventListener('new-window', (e) => {
+    try {
+      const parsed = new URL(e.url);
+      const host = parsed.hostname.toLowerCase();
+      if (host.includes('google.com') || host.includes('youtube.com') || host.includes('accounts.')) {
+        webview.loadURL(e.url);
+        return;
+      }
+    } catch (err) {}
+    e.preventDefault();
+  });
 
   // Inject distraction-free CSS
   webview.addEventListener('dom-ready', () => {
@@ -473,86 +494,98 @@ function escapeHtml(str) {
 }
 
 function handlePlayerLaunch() {
-  const url = document.getElementById('ytUrlInput').value.trim();
-  const videoData = convertToYouTubeData(url);
+  try {
+    // 1. Close preview in stage immediately to stop background audio
+    closeStagePreview();
 
-  if (!videoData) {
-    alert('Please enter a valid YouTube video link before starting.');
-    document.getElementById('ytUrlInput').focus();
-    return;
-  }
+    const url = document.getElementById('ytUrlInput').value.trim();
+    const videoData = convertToYouTubeData(url);
 
-  currentVideoId = videoData.videoId;
-
-  let unlockKey = '';
-  if (ritualMode === 'random') {
-    unlockKey = currentRandomCode;
-  } else {
-    unlockKey = document.getElementById('playerCustomPassword').value.trim();
-    if (!unlockKey) {
-      alert('Please enter a custom emergency password or use the 6-digit notebook code.');
-      document.getElementById('playerCustomPassword').focus();
+    if (!videoData) {
+      alert('Please enter a valid YouTube video link before starting.');
+      document.getElementById('ytUrlInput').focus();
       return;
     }
-  }
 
-  sessionUnlockKey = unlockKey;
+    currentVideoId = videoData.videoId;
 
-  const subject = document.querySelector('#playerSubjectChips .chip-bold.active').dataset.subject;
-  const topic = document.getElementById('playerTopicInput').value.trim() || 'Lecture Immersion';
-  const targetMinutes = parseInt(document.getElementById('playerCustomMinutes').value, 10) || 45;
-
-  document.getElementById('playerHudSubject').textContent = subject;
-  document.getElementById('playerHudTopic').textContent = topic;
-
-  // Close preview in stage if open to stop duplicate audio
-  closeStagePreview();
-
-  // Construct Multi-Resource Workspaces (YouTube primary + all saved verified websites)
-  const workspaces = [
-    {
-      id: 'ws_yt_primary',
-      title: 'YouTube Lecture',
-      url: `https://www.youtube.com/watch?v=${videoData.videoId}&autoplay=1`,
-      videoId: videoData.videoId,
-      type: 'youtube'
+    if (!currentRandomCode) {
+      generateNewRandomCode();
     }
-  ];
 
-  savedWorkspacesList.forEach((res, idx) => {
-    let rawUrl = (res.url || '').trim();
-    if (!rawUrl) return;
-    if (!/^https?:\/\//i.test(rawUrl)) {
-      rawUrl = 'https://' + rawUrl;
+    let unlockKey = currentRandomCode || '749204';
+    if (ritualMode === 'custom') {
+      const custInput = document.getElementById('playerCustomPassword');
+      const custVal = custInput ? custInput.value.trim() : '';
+      if (!custVal) {
+        alert('Please enter a custom emergency password or use the 6-digit notebook code.');
+        if (custInput) custInput.focus();
+        return;
+      }
+      unlockKey = custVal;
     }
-    const ytMatch = convertToYouTubeData(rawUrl);
-    workspaces.push({
-      id: 'ws_saved_' + idx,
-      title: res.title.trim() || `Workspace ${workspaces.length + 1}`,
-      url: ytMatch ? `https://www.youtube.com/watch?v=${ytMatch.videoId}&autoplay=1` : rawUrl,
-      videoId: ytMatch ? ytMatch.videoId : null,
-      type: ytMatch ? 'youtube' : 'web'
+
+    sessionUnlockKey = unlockKey;
+
+    const activeChip = document.querySelector('#playerSubjectChips .chip-bold.active');
+    const subject = activeChip ? activeChip.dataset.subject : 'Physics';
+    const topic = document.getElementById('playerTopicInput').value.trim() || 'Lecture Immersion';
+    const targetMinutes = parseInt(document.getElementById('playerCustomMinutes').value, 10) || 45;
+
+    const hudSub = document.getElementById('playerHudSubject');
+    if (hudSub) hudSub.textContent = subject;
+    const hudTop = document.getElementById('playerHudTopic');
+    if (hudTop) hudTop.textContent = topic;
+
+    // Construct Multi-Resource Workspaces (YouTube primary + all saved verified websites)
+    const workspaces = [
+      {
+        id: 'ws_yt_primary',
+        title: 'YouTube Lecture',
+        url: `https://www.youtube.com/watch?v=${videoData.videoId}&autoplay=1`,
+        videoId: videoData.videoId,
+        type: 'youtube'
+      }
+    ];
+
+    savedWorkspacesList.forEach((res, idx) => {
+      let rawUrl = (res.url || '').trim();
+      if (!rawUrl) return;
+      if (!/^https?:\/\//i.test(rawUrl)) {
+        rawUrl = 'https://' + rawUrl;
+      }
+      const ytMatch = convertToYouTubeData(rawUrl);
+      workspaces.push({
+        id: 'ws_saved_' + idx,
+        title: res.title.trim() || `Workspace ${workspaces.length + 1}`,
+        url: ytMatch ? `https://www.youtube.com/watch?v=${ytMatch.videoId}&autoplay=1` : rawUrl,
+        videoId: ytMatch ? ytMatch.videoId : null,
+        type: ytMatch ? 'youtube' : 'web'
+      });
     });
-  });
 
-  activeWorkspaces = workspaces;
-  activeWorkspaceIndex = 0;
+    activeWorkspaces = workspaces;
+    activeWorkspaceIndex = 0;
 
-  // Initialize all workspaces
-  initMultiWorkspaceEnvironment(activeWorkspaces);
+    // Initialize all workspaces
+    initMultiWorkspaceEnvironment(activeWorkspaces);
 
-  startSessionEngine({
-    type: 'player',
-    clockMode: 'locked',
-    subject,
-    topic,
-    targetMinutes
-  });
+    startSessionEngine({
+      type: 'player',
+      clockMode: 'locked',
+      subject,
+      topic,
+      targetMinutes
+    });
 
-  const studioView = document.querySelector('#tabPlayer .studio-viewport-expansive');
-  if (studioView) studioView.classList.add('hidden');
-  document.getElementById('playerActiveView').classList.remove('hidden');
-  window.api.setLockIn(true);
+    const studioView = document.querySelector('#tabPlayer .studio-viewport-expansive');
+    if (studioView) studioView.classList.add('hidden');
+    document.getElementById('playerActiveView').classList.remove('hidden');
+    window.api.setLockIn(true);
+  } catch (err) {
+    console.error('Launch failed:', err);
+    alert('Session launch error: ' + err.message);
+  }
 }
 
 function initMultiWorkspaceEnvironment(workspaces) {
@@ -582,16 +615,39 @@ function initMultiWorkspaceEnvironment(workspaces) {
 
     if (ws.type === 'youtube') {
       webview.setAttribute('partition', 'persist:studylock_yt');
-      webview.setAttribute('allowpopups', 'false');
+      webview.setAttribute('allowpopups', 'true'); // Allows Google & YouTube account login
       webview.src = ws.url;
 
-      if (ws.videoId) {
-        webview.addEventListener('will-navigate', (e) => {
+      // Allow Google & YouTube account sign-in while blocking roaming to other videos
+      webview.addEventListener('will-navigate', (e) => {
+        try {
+          const navUrl = new URL(e.url);
+          const navHost = navUrl.hostname.toLowerCase();
+          const isAuthHost = navHost === 'accounts.google.com' ||
+                             navHost === 'accounts.youtube.com' ||
+                             navHost.endsWith('.google.com') ||
+                             navHost.endsWith('.youtube.com');
+          if (isAuthHost && !navUrl.pathname.startsWith('/watch')) {
+            return; // Allow Google account login navigation!
+          }
           const targetId = extractYouTubeId(e.url || '');
-          if (targetId !== ws.videoId) e.preventDefault();
-        });
-      }
-      webview.addEventListener('new-window', (e) => e.preventDefault());
+          if (targetId && ws.videoId && targetId !== ws.videoId) {
+            e.preventDefault();
+          }
+        } catch (err) {}
+      });
+
+      webview.addEventListener('new-window', (e) => {
+        try {
+          const parsed = new URL(e.url);
+          const host = parsed.hostname.toLowerCase();
+          if (host.includes('google.com') || host.includes('youtube.com') || host.includes('accounts.')) {
+            webview.loadURL(e.url);
+            return;
+          }
+        } catch (err) {}
+        e.preventDefault();
+      });
 
       webview.addEventListener('enter-html-full-screen', () => {
         webview.style.position = 'fixed';
@@ -646,6 +702,25 @@ function initMultiWorkspaceEnvironment(workspaces) {
           } catch (err) {
             e.preventDefault();
           }
+        });
+
+        webview.addEventListener('new-window', (e) => {
+          try {
+            const navUrl = new URL(e.url);
+            const navHost = navUrl.hostname.toLowerCase();
+            const isAllowed = navHost === baseHost || 
+                              navHost.endsWith('.' + baseHost) || 
+                              navHost.includes('google.com') || 
+                              navHost.includes('openai.com') ||
+                              navHost.includes('physicswallah.live') ||
+                              navHost.includes('pw.live') ||
+                              navHost.includes('auth0.com');
+            if (isAllowed) {
+              webview.loadURL(e.url);
+              return;
+            }
+          } catch (err) {}
+          e.preventDefault();
         });
       } catch (e) {}
     }
@@ -939,66 +1014,76 @@ async function toggleFloatingWidget(enable) {
 }
 
 function handleClockLaunch() {
-  let unlockKey = '';
-  if (clockMode === 'locked') {
-    if (ritualMode === 'random') {
-      unlockKey = currentRandomCode;
-    } else {
-      unlockKey = document.getElementById('clockCustomPassword').value.trim();
-      if (!unlockKey) {
-        alert('Please enter a custom emergency password or use the 6-digit notebook code.');
-        document.getElementById('clockCustomPassword').focus();
-        return;
+  try {
+    let unlockKey = '';
+    if (clockMode === 'locked') {
+      if (!currentRandomCode) {
+        generateNewRandomCode();
+      }
+      if (ritualMode === 'random') {
+        unlockKey = currentRandomCode || '832915';
+      } else {
+        const custPass = document.getElementById('clockCustomPassword');
+        unlockKey = custPass ? custPass.value.trim() : '';
+        if (!unlockKey) {
+          alert('Please enter a custom emergency password or use the 6-digit notebook code.');
+          if (custPass) custPass.focus();
+          return;
+        }
       }
     }
-  }
 
-  sessionUnlockKey = unlockKey;
-  isClockPaused = false;
-  clockPauseStartTimestamp = 0;
-  clockTotalPausedMs = 0;
+    sessionUnlockKey = unlockKey;
+    isClockPaused = false;
+    clockPauseStartTimestamp = 0;
+    clockTotalPausedMs = 0;
 
-  const subject = document.querySelector('#clockSubjectChips .chip-bold.active').dataset.subject;
-  const topic = document.getElementById('clockTopicInput').value.trim() || 'Deep Work Session';
-  const targetMinutes = parseInt(document.getElementById('clockCustomMinutes').value, 10) || 45;
+    const activeSubjectChip = document.querySelector('#clockSubjectChips .chip-bold.active');
+    const subject = activeSubjectChip ? activeSubjectChip.dataset.subject : 'Physics';
+    const topic = document.getElementById('clockTopicInput').value.trim() || 'Deep Work Session';
+    const targetMinutes = parseInt(document.getElementById('clockCustomMinutes').value, 10) || 45;
 
-  document.getElementById('colossalSubject').textContent = subject;
-  document.getElementById('colossalTopic').textContent = topic;
-  document.getElementById('colossalTargetText').textContent = `Target: ${targetMinutes}m`;
+    document.getElementById('colossalSubject').textContent = subject;
+    document.getElementById('colossalTopic').textContent = topic;
+    document.getElementById('colossalTargetText').textContent = `Target: ${targetMinutes}m`;
 
-  const modeBadge = document.getElementById('colossalModeBadge');
-  const strictControls = document.getElementById('clockStrictControls');
-  const freeControls = document.getElementById('clockFreeControls');
+    const modeBadge = document.getElementById('colossalModeBadge');
+    const strictControls = document.getElementById('clockStrictControls');
+    const freeControls = document.getElementById('clockFreeControls');
 
-  if (clockMode === 'locked') {
-    if (modeBadge) modeBadge.textContent = '🔒 STRICT LOCK-IN';
-    if (strictControls) strictControls.classList.remove('hidden');
-    if (freeControls) freeControls.classList.add('hidden');
-  } else {
-    if (modeBadge) modeBadge.textContent = '🔓 NORMAL FREE MODE';
-    if (strictControls) strictControls.classList.add('hidden');
-    if (freeControls) freeControls.classList.remove('hidden');
-  }
+    if (clockMode === 'locked') {
+      if (modeBadge) modeBadge.textContent = 'STRICT LOCK-IN';
+      if (strictControls) strictControls.classList.remove('hidden');
+      if (freeControls) freeControls.classList.add('hidden');
+    } else {
+      if (modeBadge) modeBadge.textContent = 'NORMAL FREE MODE';
+      if (strictControls) strictControls.classList.add('hidden');
+      if (freeControls) freeControls.classList.remove('hidden');
+    }
 
-  const miniSubject = document.getElementById('miniFloatSubject');
-  const miniTopic = document.getElementById('miniFloatTopic');
-  if (miniSubject) miniSubject.textContent = subject;
-  if (miniTopic) miniTopic.textContent = topic;
+    const miniSubject = document.getElementById('miniFloatSubject');
+    const miniTopic = document.getElementById('miniFloatTopic');
+    if (miniSubject) miniSubject.textContent = subject;
+    if (miniTopic) miniTopic.textContent = topic;
 
-  startSessionEngine({
-    type: 'clock',
-    clockMode,
-    subject,
-    topic,
-    targetMinutes
-  });
+    startSessionEngine({
+      type: 'clock',
+      clockMode,
+      subject,
+      topic,
+      targetMinutes
+    });
 
-  document.getElementById('clockActiveView').classList.remove('hidden');
+    document.getElementById('clockActiveView').classList.remove('hidden');
 
-  if (clockMode === 'locked') {
-    window.api.setLockIn(true);
-  } else {
-    window.api.setLockIn(false);
+    if (clockMode === 'locked') {
+      window.api.setLockIn(true);
+    } else {
+      window.api.setLockIn(false);
+    }
+  } catch (err) {
+    console.error('Clock launch failed:', err);
+    alert('Focus Clock launch error: ' + err.message);
   }
 }
 
