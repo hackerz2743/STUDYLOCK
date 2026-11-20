@@ -43,8 +43,8 @@
             <div class="cockpit-card">
               <div class="cockpit-header">
                 <h2 class="cockpit-title">SESSION SETUP</h2>
-                <button type="button" id="btnOpenSyncRaySensei" class="btn-text-subtle" title="Sync RaySensei login from Chrome in 10 seconds">
-                  ⚡ Sync RaySensei
+                <button type="button" id="btnOpenSyncRaySensei" class="btn-text-subtle" title="Connect RaySensei Account for Dual Deck">
+                  🔑 Connect RaySensei
                 </button>
               </div>
 
@@ -503,51 +503,42 @@
     </div>
   </div>
 
-  <!-- ==================== RAY SENSEI 10-SEC CHROME SYNC MODAL ==================== -->
+  <!-- ==================== RAY SENSEI ACCOUNT SIGN-IN MODAL ==================== -->
   <div id="syncRaySenseiModal" class="modal-overlay hidden">
     <div class="macos-dialog-card dialog-card-large">
       <div class="sync-modal-header text-left">
-        <span class="sync-modal-badge">10-SECOND LOGIN SYNC</span>
-        <h2>Sync RaySensei Login from Chrome</h2>
-        <p class="dialog-desc mt-1">Bypass all Google security blocks permanently by copying your active RaySensei login session directly from Chrome.</p>
+        <span class="sync-modal-badge">DUAL DECK IMMERSION</span>
+        <h2>Connect RaySensei Account</h2>
+        <p class="dialog-desc mt-1">Sign in with Google or Email once to have your full RaySensei account available alongside your lectures.</p>
       </div>
 
-      <div class="sync-steps-container mt-4 text-left">
-        <!-- Step 1 -->
-        <div class="sync-step-item">
-          <div class="sync-step-num">1</div>
-          <div class="sync-step-content">
-            <span class="sync-step-text">Make sure you are logged into <strong>app.raysensei.com</strong> in your normal Google Chrome browser.</span>
+      <div class="sync-options-stack mt-5 text-left">
+        <!-- Option 1: Direct 1-Click Login (Recommended) -->
+        <div class="sync-option-card">
+          <div class="sync-option-left">
+            <div class="sync-option-tagline">🚀 RECOMMENDED (1-CLICK)</div>
+            <div class="sync-option-headline">Instant Sign-In with Google</div>
+            <div class="sync-option-desc">Opens the dedicated login window with Google security bypass active. Click "Continue with Google", sign in, and you're immediately connected!</div>
           </div>
+          <button type="button" id="btnLaunchDirectLogin" class="btn-sync-action">
+            🔑 Sign In Directly
+          </button>
         </div>
 
-        <!-- Step 2 -->
-        <div class="sync-step-item">
-          <div class="sync-step-num">2</div>
-          <div class="sync-step-content">
-            <span class="sync-step-text">On that RaySensei tab in Chrome, press <strong>F12</strong>, click <strong>Console</strong>, paste this command, and press <strong>Enter</strong>:</span>
-            <div class="sync-code-box mt-2">
-              <code id="syncCommandCode">copy(JSON.stringify(localStorage))</code>
-              <button type="button" id="btnCopySyncCommand" class="btn-copy-code" title="Copy command to clipboard">Copy</button>
-            </div>
-            <span class="sync-step-hint">Chrome will instantly copy your login credentials to your clipboard.</span>
+        <!-- Option 2: Method 1 External Browser Flow -->
+        <div class="sync-option-card">
+          <div class="sync-option-left">
+            <div class="sync-option-tagline">🌐 METHOD 1 (SYSTEM BROWSER)</div>
+            <div class="sync-option-headline">Sync from Chrome / Edge</div>
+            <div class="sync-option-desc">Already logged into RaySensei in your normal browser? Open the 1-click bridge to sync your session automatically into StudyLock.</div>
           </div>
-        </div>
-
-        <!-- Step 3 -->
-        <div class="sync-step-item">
-          <div class="sync-step-num">3</div>
-          <div class="sync-step-content">
-            <span class="sync-step-text">Come back here and click:</span>
-            <div class="mt-2">
-              <button type="button" id="btnPasteAndSyncRaySensei" class="btn-sync-action">
-                ⚡ Paste & Sync Session
-              </button>
-            </div>
-            <div id="syncStatusFeedback" class="sync-feedback-text hidden"></div>
-          </div>
+          <button type="button" id="btnLaunchBrowserBridge" class="btn-sync-action btn-secondary-action">
+            ⚡ Open in Browser
+          </button>
         </div>
       </div>
+
+      <div id="syncStatusFeedback" class="sync-feedback-text hidden mt-4"></div>
 
       <div class="dialog-actions-row mt-6">
         <button id="btnCloseSyncRaySensei" class="btn-dialog-cancel">Close</button>

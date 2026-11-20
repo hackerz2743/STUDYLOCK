@@ -239,16 +239,30 @@ function setupRaySenseiSyncUI() {
   const btnOpenSync = document.getElementById('btnOpenSyncRaySensei');
   const btnCloseSync = document.getElementById('btnCloseSyncRaySensei');
   const modal = document.getElementById('syncRaySenseiModal');
-  const btnCopyCmd = document.getElementById('btnCopySyncCommand');
-  const btnPasteSync = document.getElementById('btnPasteAndSyncRaySensei');
+  const btnDirect = document.getElementById('btnLaunchDirectLogin');
+  const btnBrowser = document.getElementById('btnLaunchBrowserBridge');
   const feedback = document.getElementById('syncStatusFeedback');
 
-  // Check if already synced
-  if (btnOpenSync && localStorage.getItem('studylock_raysensei_session')) {
-    btnOpenSync.textContent = '✓ RaySensei Synced';
-    btnOpenSync.style.color = '#34d399';
+  function markAsConnected() {
+    if (btnOpenSync) {
+      btnOpenSync.textContent = '✓ RaySensei Connected';
+      btnOpenSync.style.color = '#34d399';
+      btnOpenSync.title = 'RaySensei account is connected and ready';
+    }
   }
 
+  // Check if already authenticated on app launch
+  if (window.api && window.api.checkRaySenseiAuthStatus) {
+    window.api.checkRaySenseiAuthStatus().then(res => {
+      if (res && res.isLoggedIn) {
+        markAsConnected();
+      }
+    }).catch(() => {});
+  } else if (localStorage.getItem('studylock_raysensei_session')) {
+    markAsConnected();
+  }
+
+  // Open / Close Modal
   if (btnOpenSync && modal) {
     btnOpenSync.addEventListener('click', () => {
       if (feedback) {
@@ -265,97 +279,56 @@ function setupRaySenseiSyncUI() {
     });
   }
 
-  if (btnCopyCmd) {
-    btnCopyCmd.addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText('copy(JSON.stringify(localStorage))');
-        const origText = btnCopyCmd.textContent;
-        btnCopyCmd.textContent = 'Copied!';
-        btnCopyCmd.style.color = '#34d399';
-        setTimeout(() => {
-          btnCopyCmd.textContent = origText;
-          btnCopyCmd.style.color = '';
-        }, 2000);
-      } catch (err) {
-        console.error('Clipboard copy failed:', err);
+  // Option 1: Direct 1-Click Login (Secured with Google Bypass)
+  if (btnDirect) {
+    btnDirect.addEventListener('click', async () => {
+      if (feedback) {
+        feedback.className = 'sync-feedback-text sync-feedback-success';
+        feedback.textContent = 'Opening RaySensei sign-in window... Please sign in with your Google account.';
+        feedback.classList.remove('hidden');
+      }
+      if (window.api && window.api.openRaySenseiLogin) {
+        await window.api.openRaySenseiLogin();
       }
     });
   }
 
-  if (btnPasteSync) {
-    btnPasteSync.addEventListener('click', async () => {
-      try {
-        const text = await navigator.clipboard.readText();
-        if (!text || text.trim() === '') {
-          if (feedback) {
-            feedback.className = 'sync-feedback-text sync-feedback-error';
-            feedback.textContent = 'Clipboard is empty. Please run the command in Chrome console first.';
-          }
-          return;
-        }
-
-        let parsed = null;
-        try {
-          parsed = JSON.parse(text.trim());
-        } catch (e) {
-          if (feedback) {
-            feedback.className = 'sync-feedback-text sync-feedback-error';
-            feedback.textContent = 'Invalid session data in clipboard. Please copy directly from Chrome console.';
-          }
-          return;
-        }
-
-        if (typeof parsed !== 'object' || Object.keys(parsed).length === 0) {
-          if (feedback) {
-            feedback.className = 'sync-feedback-text sync-feedback-error';
-            feedback.textContent = 'No storage keys found. Make sure you are signed in on app.raysensei.com in Chrome.';
-          }
-          return;
-        }
-
-        // Save locally in StudyLock
-        localStorage.setItem('studylock_raysensei_session', JSON.stringify(parsed));
-
-        // Inject into persistent partition
-        if (window.api && window.api.injectRaySenseiSession) {
-          await window.api.injectRaySenseiSession(JSON.stringify(parsed));
-        }
-
-        // Inject into live RaySensei webview if loaded
-        if (rayWebviewEl) {
-          rayWebviewEl.executeJavaScript(`
-            try {
-              const data = ${JSON.stringify(parsed)};
-              for (const [k, v] of Object.entries(data)) {
-                localStorage.setItem(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
-              }
-              window.location.reload();
-            } catch (e) {}
-          `).catch(() => {});
-        }
-
-        if (feedback) {
-          feedback.className = 'sync-feedback-text sync-feedback-success';
-          feedback.textContent = '🎉 RaySensei login session synced successfully! You are logged in.';
-        }
-
-        if (btnOpenSync) {
-          btnOpenSync.textContent = '✓ RaySensei Synced';
-          btnOpenSync.style.color = '#34d399';
-        }
-
-        showToastNotification('✓ RaySensei login synced from Chrome! Account ready.');
-
-        setTimeout(() => {
-          if (modal) modal.classList.add('hidden');
-        }, 1800);
-      } catch (err) {
-        console.error('Paste sync error:', err);
-        if (feedback) {
-          feedback.className = 'sync-feedback-text sync-feedback-error';
-          feedback.textContent = 'Failed to read clipboard: ' + err.message;
-        }
+  // Option 2: Method 1 External System Browser Flow
+  if (btnBrowser) {
+    btnBrowser.addEventListener('click', async () => {
+      if (feedback) {
+        feedback.className = 'sync-feedback-text sync-feedback-success';
+        feedback.textContent = 'Browser opened! Log into RaySensei in your browser and click "⚡ Sync to StudyLock" on your bookmarks bar.';
+        feedback.classList.remove('hidden');
       }
+      if (window.api && window.api.startRaySenseiBrowserAuth) {
+        await window.api.startRaySenseiBrowserAuth();
+      }
+    });
+  }
+
+  // Listen for Authentication Success event from Main Process
+  if (window.api && window.api.onRaySenseiAuthSuccess) {
+    window.api.onRaySenseiAuthSuccess(() => {
+      markAsConnected();
+      localStorage.setItem('studylock_raysensei_session', 'true');
+
+      if (feedback) {
+        feedback.className = 'sync-feedback-text sync-feedback-success';
+        feedback.textContent = '🎉 RaySensei account connected successfully! Account ready for Dual Deck.';
+        feedback.classList.remove('hidden');
+      }
+
+      showToastNotification('✓ RaySensei connected successfully! Account ready.');
+
+      // Reload live RaySensei webview if currently mounted
+      if (rayWebviewEl) {
+        try { rayWebviewEl.reload(); } catch (e) {}
+      }
+
+      setTimeout(() => {
+        if (modal) modal.classList.add('hidden');
+      }, 1500);
     });
   }
 }
@@ -650,6 +623,8 @@ function initDedicatedDualDeck(videoId) {
       const navHost = navUrl.hostname.toLowerCase();
       const isAllowed = navHost.includes('raysensei.com') ||
                         navHost.includes('google.com') ||
+                        navHost.includes('googleusercontent.com') ||
+                        navHost.includes('gstatic.com') ||
                         navHost.includes('firebaseapp.com') ||
                         navHost.includes('supabase.co') ||
                         navHost.includes('clerk.dev') ||

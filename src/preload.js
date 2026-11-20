@@ -11,7 +11,10 @@ contextBridge.exposeInMainWorld('api', {
   setLockIn: (enabled) => ipcRenderer.invoke('set-lock-in', enabled),
   setFloatingWidgetMode: (enabled) => ipcRenderer.invoke('set-floating-widget-mode', enabled),
   openRaySenseiLogin: () => ipcRenderer.invoke('open-raysensei-login'),
+  startRaySenseiBrowserAuth: () => ipcRenderer.invoke('start-raysensei-browser-auth'),
+  checkRaySenseiAuthStatus: () => ipcRenderer.invoke('check-raysensei-auth-status'),
   injectRaySenseiSession: (sessionData) => ipcRenderer.invoke('inject-raysensei-session', sessionData),
+  onRaySenseiAuthSuccess: (callback) => ipcRenderer.on('raysensei-auth-success', (event, data) => callback(data)),
   
   // Window management
   minimizeWindow: () => ipcRenderer.send('window-minimize'),
