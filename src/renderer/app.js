@@ -255,7 +255,7 @@ function renderPreviewPlayer(videoId) {
   webview.id = 'stagePreviewWebview';
   webview.setAttribute('partition', 'persist:studylock_session');
   webview.setAttribute('allowfullscreen', 'true');
-  webview.setAttribute('useragent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36');
+  webview.setAttribute('useragent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0');
   webview.setAttribute('allowpopups', 'true');
   webview.style.width = '100%';
   webview.style.height = '100%';
@@ -467,7 +467,7 @@ function initDedicatedDualDeck(videoId) {
   ytWv.setAttribute('allowfullscreen', 'true');
   ytWv.setAttribute('allowpopups', 'true');
   ytWv.setAttribute('partition', 'persist:studylock_session');
-  ytWv.setAttribute('useragent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36');
+  ytWv.setAttribute('useragent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0');
   ytWv.src = `https://www.youtube.com/watch?v=${videoId}&autoplay=1`;
 
   // Protect YouTube navigation: allow account sign-in, prevent roaming to unrelated videos
@@ -522,7 +522,7 @@ function initDedicatedDualDeck(videoId) {
   rayWv.setAttribute('allowfullscreen', 'true');
   rayWv.setAttribute('allowpopups', 'true');
   rayWv.setAttribute('partition', 'persist:studylock_session');
-  rayWv.setAttribute('useragent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36');
+  rayWv.setAttribute('useragent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0');
   rayWv.src = 'https://app.raysensei.com/';
 
   // Allow navigation inside RaySensei and OAuth providers

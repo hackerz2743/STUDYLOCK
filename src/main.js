@@ -8,9 +8,9 @@ app.commandLine.appendSwitch('ignore-gpu-blocklist');
 app.commandLine.appendSwitch('high-dpi-support', '1');
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
-// Standard modern Chrome User-Agent
-const CHROME_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
-app.userAgentFallback = CHROME_UA;
+// Standard modern Microsoft Edge on Windows User-Agent (Bypasses Google's embedded browser block)
+const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0';
+app.userAgentFallback = BROWSER_UA;
 
 let mainWindow = null;
 let isLockedIn = false;
@@ -310,8 +310,8 @@ ipcMain.handle('open-raysensei-login', async () => {
     }
   });
 
-  loginWin.webContents.setUserAgent(CHROME_UA);
-  loginWin.loadURL('https://app.raysensei.com/');
+  loginWin.webContents.setUserAgent(BROWSER_UA);
+  loginWin.loadURL('https://app.raysensei.com/', { userAgent: BROWSER_UA });
 
   loginWin.webContents.setWindowOpenHandler((details) => {
     return {
@@ -344,14 +344,13 @@ if (!gotTheLock) {
   });
 
   app.whenReady().then(() => {
-    // Configure default and unified persistent session with pristine Chrome User-Agent
+    // Configure default and unified persistent session with pristine Edge User-Agent
     const unifiedSession = session.fromPartition('persist:studylock_session');
     [session.defaultSession, unifiedSession].forEach(ses => {
-      ses.setUserAgent(CHROME_UA);
+      ses.setUserAgent(BROWSER_UA);
       ses.webRequest.onBeforeSendHeaders(
-        { urls: ['*://*.youtube-nocookie.com/*', '*://*.youtube.com/embed/*', '*://*.google.com/*', '*://*.raysensei.com/*'] },
         (details, callback) => {
-          details.requestHeaders['User-Agent'] = CHROME_UA;
+          details.requestHeaders['User-Agent'] = BROWSER_UA;
           if (details.url.includes('youtube-nocookie.com') || details.url.includes('youtube.com/embed')) {
             details.requestHeaders['Referer'] = 'https://www.youtube.com/';
           }
@@ -364,6 +363,8 @@ if (!gotTheLock) {
 
     // Intercept keyboard inputs & handle OAuth popups across all webcontents (including guest <webview> instances)
     app.on('web-contents-created', (event, contents) => {
+      contents.setUserAgent(BROWSER_UA);
+
       // Seamlessly allow Google OAuth and RaySensei child popups while preserving session cookies
       contents.setWindowOpenHandler((details) => {
         const urlStr = (details.url || '').toLowerCase();
