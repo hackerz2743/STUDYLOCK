@@ -549,6 +549,8 @@ function handlePlayerLaunch() {
     targetMinutes
   });
 
+  const studioView = document.querySelector('#tabPlayer .studio-viewport-expansive');
+  if (studioView) studioView.classList.add('hidden');
   document.getElementById('playerActiveView').classList.remove('hidden');
   window.api.setLockIn(true);
 }
@@ -574,13 +576,9 @@ function initMultiWorkspaceEnvironment(workspaces) {
     // 2. Sandboxed Webview
     const webview = document.createElement('webview');
     webview.id = `ws_webview_${idx}`;
+    webview.className = `workspace-webview ${idx === activeWorkspaceIndex ? 'active-workspace' : 'inactive-workspace'}`;
     webview.setAttribute('allowfullscreen', 'true');
     webview.setAttribute('useragent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36');
-    webview.style.width = '100%';
-    webview.style.height = '100%';
-    webview.style.border = 'none';
-    webview.style.display = idx === activeWorkspaceIndex ? 'flex' : 'none';
-    webview.style.flex = '1';
 
     if (ws.type === 'youtube') {
       webview.setAttribute('partition', 'persist:studylock_yt');
@@ -605,7 +603,7 @@ function initMultiWorkspaceEnvironment(workspaces) {
       });
 
       webview.addEventListener('leave-html-full-screen', () => {
-        webview.style.position = 'static';
+        webview.style.position = 'relative';
         webview.style.width = '100%';
         webview.style.height = '100%';
         webview.style.zIndex = 'auto';
@@ -618,13 +616,6 @@ function initMultiWorkspaceEnvironment(workspaces) {
           }
           #page-manager { margin-top: 0 !important; }
           ytd-watch-flexy[flexy] #primary.ytd-watch-flexy { max-width: 100vw !important; margin: 0 auto !important; padding: 0 !important; }
-          ytd-app, #content, ytd-page-manager { background: #000 !important; margin: 0 !important; padding: 0 !important; }
-          #player-container-outer, #player-container-inner, #player-container, #movie_player, .html5-video-player, video {
-            width: 100vw !important;
-            height: calc(100vh - 56px) !important;
-            max-width: 100vw !important;
-            max-height: calc(100vh - 56px) !important;
-          }
         `).catch(() => {});
       });
     } else {
@@ -723,10 +714,12 @@ function switchWorkspace(targetIndex) {
   activeWorkspaces.forEach((ws, idx) => {
     if (ws.webviewEl) {
       if (idx === targetIndex) {
-        ws.webviewEl.style.display = 'flex';
+        ws.webviewEl.classList.remove('inactive-workspace');
+        ws.webviewEl.classList.add('active-workspace');
         ws.webviewEl.focus();
       } else {
-        ws.webviewEl.style.display = 'none';
+        ws.webviewEl.classList.remove('active-workspace');
+        ws.webviewEl.classList.add('inactive-workspace');
       }
     }
   });
@@ -1188,6 +1181,8 @@ async function finishAndSaveSession(exitReason = 'target_completed') {
 
   // 2. Teardown Viewports & Webview
   document.body.style.cursor = 'default';
+  const studioView = document.querySelector('#tabPlayer .studio-viewport-expansive');
+  if (studioView) studioView.classList.remove('hidden');
   document.getElementById('playerActiveView').classList.add('hidden');
   document.getElementById('clockActiveView').classList.add('hidden');
   document.getElementById('videoFrameWrapper').innerHTML = '';

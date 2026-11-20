@@ -4,7 +4,6 @@ const fs = require('fs');
 
 // Hardware acceleration & performance switches for 120+ FPS rendering
 app.commandLine.appendSwitch('enable-gpu-rasterization');
-app.commandLine.appendSwitch('enable-zero-copy');
 app.commandLine.appendSwitch('ignore-gpu-blocklist');
 app.commandLine.appendSwitch('high-dpi-support', '1');
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
@@ -322,6 +321,24 @@ if (!gotTheLock) {
     // Intercept keyboard inputs across all webcontents (including guest <webview> instances)
     app.on('web-contents-created', (event, contents) => {
       contents.on('before-input-event', (inputEvent, input) => {
+        // Fast Refresh (Ctrl+R / F5) when not locked in
+        if (input.type === 'keyDown' && ((input.control && (input.key === 'r' || input.key === 'R')) || input.key === 'F5')) {
+          if (!isLockedIn && mainWindow && !mainWindow.isDestroyed()) {
+            inputEvent.preventDefault();
+            mainWindow.reload();
+            return;
+          }
+        }
+
+        // Toggle DevTools (Ctrl+Shift+I / F12) when not locked in
+        if (input.type === 'keyDown' && ((input.control && input.shift && (input.key === 'i' || input.key === 'I')) || input.key === 'F12')) {
+          if (!isLockedIn && mainWindow && !mainWindow.isDestroyed()) {
+            inputEvent.preventDefault();
+            mainWindow.webContents.toggleDevTools();
+            return;
+          }
+        }
+
         // Intercept Backtick (` / ~) regardless of which webview is active
         if (input.type === 'keyDown' && (input.key === '`' || input.key === '~' || input.code === 'Backquote')) {
           if (isLockedIn && mainWindow && !mainWindow.isDestroyed()) {
