@@ -1,6 +1,6 @@
 {
   "name": "studylock",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "productName": "StudyLock",
   "description": "Distraction-Free Immersion Study & Desk Clock App",
   "main": "src/main.js",
@@ -49,16 +49,16 @@
       "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
-      "oneClick": true,
+      "oneClick": false,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": false,
-      "createDesktopShortcut": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
       "shortcutName": "StudyLock",
-      "artifactName": "StudyLock-Installer.exe"
+      "artifactName": "StudyLock-Setup-${version}.${ext}"
     },
     "portable": {
-      "artifactName": "StudyLock.exe",
+      "artifactName": "StudyLock-Portable-${version}.${ext}",
       "requestExecutionLevel": "user"
     }
   },
