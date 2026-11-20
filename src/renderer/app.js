@@ -2908,6 +2908,21 @@ async function setupSquadSection() {
     });
   }
 
+  // 5b. Copy My Handle Button
+  const btnCopyMyHandle = document.getElementById('btnCopyMyHandle');
+  if (btnCopyMyHandle) {
+    btnCopyMyHandle.addEventListener('click', async () => {
+      if (squadCurrentUser && squadCurrentUser.username) {
+        try {
+          await navigator.clipboard.writeText(`@${squadCurrentUser.username}`);
+          showToastNotification(`📋 Copied your squad handle (@${squadCurrentUser.username})!`);
+        } catch (e) {
+          showToastNotification(`Your handle is @${squadCurrentUser.username}`);
+        }
+      }
+    });
+  }
+
   // 6. Filter Pills
   filterPills.forEach(pill => {
     pill.addEventListener('click', () => {
@@ -3006,9 +3021,11 @@ async function renderSquadView() {
     const userEl = document.getElementById('squadUserUsername');
     const hoursEl = document.getElementById('squadUserTodayHours');
     const countEl = document.getElementById('squadUserFriendCount');
+    const copyHandleEl = document.getElementById('squadMyHandleCopy');
 
     if (avatarEl) avatarEl.textContent = squadCurrentUser.avatar_url || '⚡';
     if (userEl) userEl.textContent = `@${squadCurrentUser.username || 'Student'}`;
+    if (copyHandleEl) copyHandleEl.textContent = `@${squadCurrentUser.username || 'Student'}`;
     if (hoursEl) {
       const todaySecs = computeTodayTotalStudySeconds();
       hoursEl.textContent = formatDurationShortHM(todaySecs);
@@ -3033,18 +3050,25 @@ async function loadSquadFriends() {
 
 function renderSquadFriends() {
   const listEl = document.getElementById('squadFriendsList');
+  const filterBox = document.getElementById('squadFeedFilters');
   const countAll = document.getElementById('squadCountAll');
   const countStudying = document.getElementById('squadCountStudying');
   const countIdle = document.getElementById('squadCountIdle');
 
   if (!listEl) return;
 
+  const totalFriends = squadFriends.length;
   const studyingCount = squadFriends.filter(f => f.presenceState === 'studying').length;
   const idleCount = squadFriends.filter(f => f.presenceState !== 'studying').length;
 
-  if (countAll) countAll.textContent = squadFriends.length;
+  if (countAll) countAll.textContent = totalFriends;
   if (countStudying) countStudying.textContent = studyingCount;
   if (countIdle) countIdle.textContent = idleCount;
+
+  // Hide or show filters depending on friend count (eliminates 0-counter clutter!)
+  if (filterBox) {
+    filterBox.style.display = totalFriends > 0 ? 'flex' : 'none';
+  }
 
   // Filter according to active tab
   let displayFriends = squadFriends;
@@ -3055,19 +3079,65 @@ function renderSquadFriends() {
   }
 
   if (displayFriends.length === 0) {
-    if (squadFriends.length === 0) {
+    if (totalFriends === 0) {
       listEl.innerHTML = `
-        <div class="squad-empty-state">
-          <div class="squad-empty-icon">👥</div>
-          <div class="squad-empty-title">Your Study Squad is Empty</div>
-          <div class="squad-empty-sub">Add your friends using their username above to track each other's live study sessions!</div>
+        <div class="squad-empty-guide">
+          <div class="squad-empty-hero">
+            <div class="squad-empty-icon-frame">👥</div>
+            <h3 class="squad-empty-title">Your Study Squad is Ready</h3>
+            <p class="squad-empty-sub">Connect with your study partners to track each other's live sessions, topics, and daily focus hours in real time.</p>
+          </div>
+
+          <!-- Interactive Live Preview Mockup -->
+          <div class="squad-preview-mockup">
+            <span class="squad-preview-mockup-label">PREVIEW · WHAT LIVE TELEMETRY LOOKS LIKE</span>
+            <div class="squad-friend-card studying preview-card">
+              <div class="friend-card-left">
+                <div class="friend-avatar">🚀</div>
+                <div class="friend-meta">
+                  <div class="friend-name-row">
+                    <span class="friend-username">@study_partner</span>
+                    <span class="friend-status-badge badge-studying">🟢 LOCKED IN</span>
+                  </div>
+                  <span class="friend-activity-text">Physics • HC Verma Ch 7</span>
+                </div>
+              </div>
+              <div class="friend-card-right">
+                <div class="friend-telemetry-block">
+                  <span class="friend-live-timer">⏱️ 34m 12s in session</span>
+                  <span class="friend-today-total">🔥 04h 15m today</span>
+                </div>
+                <div class="btn-friend-boost preview-boost">🔥 Boost</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="squad-empty-footer">
+            <span>Ready to begin?</span>
+            <button type="button" id="btnFocusFriendInput" class="btn-empty-focus-input">
+              Type friend's username on the left →
+            </button>
+          </div>
         </div>
       `;
+
+      const focusBtn = document.getElementById('btnFocusFriendInput');
+      if (focusBtn) {
+        focusBtn.addEventListener('click', () => {
+          const inp = document.getElementById('inputFriendUsername');
+          if (inp) {
+            inp.focus();
+            inp.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        });
+      }
     } else {
       listEl.innerHTML = `
-        <div class="squad-empty-state">
-          <div class="squad-empty-title">No friends currently ${squadActiveFilter === 'studying' ? 'studying' : 'idle'}</div>
-          <div class="squad-empty-sub">Switch filters to see all squad members.</div>
+        <div class="squad-empty-guide">
+          <div class="squad-empty-hero">
+            <h3 class="squad-empty-title">No friends currently ${squadActiveFilter === 'studying' ? 'studying' : 'idle'}</h3>
+            <p class="squad-empty-sub">Switch filters above to see all squad members.</p>
+          </div>
         </div>
       `;
     }

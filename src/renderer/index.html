@@ -701,22 +701,19 @@
 
     <!-- ==================== TAB 5: STUDY SQUAD (Multiplayer Live Presence) ==================== -->
     <section id="tabSquad" class="tab-pane">
-      <div class="squad-viewport-container">
+      <div class="studio-viewport-expansive squad-viewport">
 
         <!-- SQUAD AUTH VIEW (Shown when logged out) -->
         <div id="squadAuthView" class="squad-auth-wrapper">
-          <div class="squad-auth-card">
+          <div class="cockpit-card squad-auth-card">
             <div class="squad-auth-header">
-              <div class="squad-pill-badge">
-                <span class="pulse-dot"></span>
-                <span>MULTIPLAYER STUDY SQUAD</span>
-              </div>
-              <h1 class="squad-auth-title">STUDY TOGETHER. STAY ACCOUNTABLE.</h1>
-              <p class="squad-auth-sub">Connect with your friends, see their live study sessions in real-time, and compete without distractions.</p>
+              <span class="micro-eyebrow">MULTIPLAYER SQUAD</span>
+              <h1 class="cockpit-title mt-1">STUDY TOGETHER. STAY ACCOUNTABLE.</h1>
+              <p class="cockpit-sub mt-1">Connect with your friends, see their live study sessions in real-time, and compete without distractions.</p>
             </div>
 
             <!-- Auth Mode Switcher -->
-            <div class="squad-auth-modes">
+            <div class="squad-auth-modes mt-4">
               <button type="button" id="btnSquadModeLogin" class="btn-squad-mode active">Sign In</button>
               <button type="button" id="btnSquadModeSignup" class="btn-squad-mode">Create Account</button>
             </div>
@@ -726,9 +723,9 @@
               <!-- Username (Signup only) -->
               <div id="groupSquadUsername" class="form-group hidden">
                 <label class="form-label-bold">USERNAME (FOR FRIENDS TO ADD YOU)</label>
-                <div class="input-with-prefix">
-                  <span class="input-prefix">@</span>
-                  <input type="text" id="squadInputUsername" class="bold-input-standard" placeholder="e.g. bhavishy" maxlength="24">
+                <div class="squad-input-well">
+                  <span class="squad-input-at">@</span>
+                  <input type="text" id="squadInputUsername" class="squad-friend-input" placeholder="study_buddy" maxlength="24">
                 </div>
               </div>
 
@@ -770,81 +767,106 @@
 
         <!-- SQUAD DASHBOARD VIEW (Shown when logged in) -->
         <div id="squadDashboardView" class="squad-dashboard-wrapper hidden">
-          <div class="squad-grid-container">
+          <div class="studio-grid-expansive squad-studio-grid">
 
-            <!-- LEFT COLUMN: Your Profile & Add Friends -->
-            <div class="squad-column-left">
-              
-              <!-- Your Profile Card -->
-              <div class="squad-card squad-profile-card">
-                <div class="squad-profile-header">
-                  <div class="squad-avatar-display" id="squadUserAvatar">⚡</div>
-                  <div class="squad-profile-info">
-                    <span class="squad-profile-username" id="squadUserUsername">@username</span>
-                    <span class="squad-profile-status-pill" id="squadUserStatusPill">
-                      <span class="pulse-dot"></span>
+            <!-- LEFT COLUMN: SQUAD PROFILE & INVITE COCKPIT (40%) -->
+            <div class="studio-column-cockpit squad-column-cockpit">
+              <div class="cockpit-card squad-cockpit-unified">
+                
+                <!-- COCKPIT HEADER -->
+                <div class="cockpit-header">
+                  <div class="cockpit-header-left">
+                    <span class="micro-eyebrow">SQUAD PROFILE</span>
+                    <h2 class="cockpit-title" id="squadUserUsername">@username</h2>
+                  </div>
+                  <div class="cockpit-header-right">
+                    <div class="squad-live-badge-soft" id="squadUserStatusPill">
+                      <span class="pulse-dot-soft"></span>
                       <span id="squadUserStatusText">Online</span>
-                    </span>
-                  </div>
-                </div>
-
-                <div class="squad-profile-stats mt-3">
-                  <div class="squad-stat-box">
-                    <span class="squad-stat-label">TODAY'S STUDY</span>
-                    <span class="squad-stat-val" id="squadUserTodayHours">00h 00m</span>
-                  </div>
-                  <div class="squad-stat-box">
-                    <span class="squad-stat-label">FRIENDS</span>
-                    <span class="squad-stat-val" id="squadUserFriendCount">0</span>
-                  </div>
-                </div>
-
-                <button type="button" id="btnSquadLogout" class="btn-squad-logout mt-3">
-                  Sign Out
-                </button>
-              </div>
-
-              <!-- Add Friend Card -->
-              <div class="squad-card mt-3">
-                <div class="squad-card-title-row">
-                  <h3 class="squad-card-heading">ADD STUDY FRIEND</h3>
-                  <span class="squad-card-badge">Instant Sync</span>
-                </div>
-                <p class="squad-helper-text">Enter your friend's exact username to connect your live study feeds.</p>
-
-                <form id="formAddFriend" class="add-friend-form mt-2">
-                  <div class="add-friend-input-group">
-                    <span class="input-prefix">@</span>
-                    <input type="text" id="inputFriendUsername" class="bold-input-standard" placeholder="friend_username" maxlength="24" required>
-                    <button type="submit" id="btnAddFriendSubmit" class="btn-add-friend">
-                      + Add
+                    </div>
+                    <button type="button" id="btnSquadLogout" class="btn-squad-signout-subtle" title="Sign out of Squad">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                      Sign Out
                     </button>
                   </div>
-                </form>
-                <div id="squadAddFriendMsg" class="squad-feedback-msg hidden"></div>
-              </div>
+                </div>
 
+                <!-- PROFILE AVATAR & TELEMETRY WELLS -->
+                <div class="squad-profile-hero-row mt-3">
+                  <div class="squad-avatar-frame" id="squadUserAvatar">⚡</div>
+                  <div class="squad-hero-telemetry">
+                    <div class="squad-telemetry-well">
+                      <span class="squad-well-label">TODAY'S STUDY</span>
+                      <span class="squad-well-val" id="squadUserTodayHours">00h 00m</span>
+                    </div>
+                    <div class="squad-telemetry-well">
+                      <span class="squad-well-label">FRIENDS</span>
+                      <span class="squad-well-val" id="squadUserFriendCount">0</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- DIVIDER -->
+                <div class="squad-cockpit-divider mt-4"></div>
+
+                <!-- ADD STUDY FRIEND SUB-GROUP -->
+                <div class="form-group mt-3">
+                  <div class="squad-section-label-row">
+                    <label class="form-label-bold">ADD STUDY FRIEND</label>
+                    <button type="button" id="btnCopyMyHandle" class="btn-copy-my-handle" title="Click to copy your username">
+                      <span>Copy your handle:</span>
+                      <strong id="squadMyHandleCopy">@username</strong>
+                    </button>
+                  </div>
+                  <p class="squad-micro-copy">Connect with a study partner by username to see each other's live sessions.</p>
+
+                  <form id="formAddFriend" class="squad-add-form mt-2">
+                    <div class="squad-input-well">
+                      <span class="squad-input-at">@</span>
+                      <input type="text" id="inputFriendUsername" class="squad-friend-input" placeholder="study_buddy" maxlength="24" required>
+                      <button type="submit" id="btnAddFriendSubmit" class="btn-squad-add-primary">
+                        + Add
+                      </button>
+                    </div>
+                  </form>
+                  <div id="squadAddFriendMsg" class="squad-feedback-msg hidden"></div>
+                </div>
+
+                <!-- SLEEK INFO WELL -->
+                <div class="squad-tip-well mt-4">
+                  <div class="squad-tip-icon">🛡️</div>
+                  <div class="squad-tip-body">
+                    <span class="squad-tip-title">Zero Ghost Presence</span>
+                    <p class="squad-tip-text">StudyLock automatically broadcasts your active subject & timer when you lock in, and clears presence when you exit.</p>
+                  </div>
+                </div>
+
+              </div>
             </div>
 
-            <!-- RIGHT COLUMN: Squad Friends Live Feed -->
-            <div class="squad-column-right">
-              <div class="squad-card squad-feed-card">
-                <div class="squad-feed-header">
+            <!-- RIGHT COLUMN: SQUAD STUDY FEED (60%) -->
+            <div class="studio-column-preview squad-column-feed">
+              <div class="cockpit-card squad-feed-card">
+                
+                <div class="cockpit-header squad-feed-header-bar">
                   <div>
-                    <h2 class="squad-card-heading">SQUAD STUDY FEED</h2>
-                    <span class="squad-card-sub">Live presence & study telemetry (auto-refreshed)</span>
+                    <span class="micro-eyebrow">LIVE TELEMETRY</span>
+                    <h2 class="cockpit-title">SQUAD STUDY FEED</h2>
                   </div>
-                  <div class="squad-feed-filters">
+
+                  <!-- Filter Pills (gracefully hidden when 0 friends) -->
+                  <div class="squad-feed-filters" id="squadFeedFilters" style="display: none;">
                     <button type="button" class="squad-filter-pill active" data-filter="all">All (<span id="squadCountAll">0</span>)</button>
                     <button type="button" class="squad-filter-pill" data-filter="studying">🟢 Studying (<span id="squadCountStudying">0</span>)</button>
                     <button type="button" class="squad-filter-pill" data-filter="idle">Idle / Off (<span id="squadCountIdle">0</span>)</button>
                   </div>
                 </div>
 
-                <!-- Live Squad Friends List -->
-                <div id="squadFriendsList" class="squad-friends-list mt-3">
+                <!-- Squad Friends List or Crafted Zero-State Guide -->
+                <div id="squadFriendsList" class="squad-friends-scroll-well mt-3">
                   <!-- Injected dynamically -->
                 </div>
+
               </div>
             </div>
 

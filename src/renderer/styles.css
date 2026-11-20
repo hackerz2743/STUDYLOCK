@@ -3934,13 +3934,30 @@ button:active,
 
 /* ========================================================
    STUDY SQUAD (Multiplayer Live Presence & Friends)
+   Unified Studio Layout & "Quiet Luxury" Elevation Ladder
    ======================================================== */
-.squad-viewport-container {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 24px 32px 48px;
-  height: calc(100vh - var(--titlebar-height));
-  overflow-y: auto;
+.squad-viewport {
+  padding: 20px 32px 32px;
+  min-height: calc(100vh - 52px);
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+}
+
+.squad-studio-grid {
+  display: grid;
+  grid-template-columns: minmax(380px, 420px) minmax(0, 1.45fr);
+  gap: 24px;
+  width: 90vw;
+  max-width: 1560px;
+  align-items: stretch;
+}
+
+@media (max-width: 1080px) {
+  .squad-studio-grid {
+    grid-template-columns: 1fr;
+    width: 94vw;
+  }
 }
 
 /* SQUAD AUTH WRAPPER */
@@ -3948,57 +3965,22 @@ button:active,
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: calc(100vh - 160px);
-  padding: 20px;
+  width: 100%;
+  min-height: calc(100vh - 140px);
 }
 
 .squad-auth-card {
   width: 100%;
   max-width: 480px;
-  background: rgba(13, 20, 33, 0.85);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--radius-lg);
-  padding: 32px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-}
-
-.squad-pill-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  background: rgba(56, 189, 248, 0.1);
-  border: 1px solid rgba(56, 189, 248, 0.25);
-  border-radius: 9999px;
-  color: var(--accent-cyan);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  margin-bottom: 12px;
-}
-
-.squad-auth-title {
-  font-size: 20px;
-  font-weight: 900;
-  color: #ffffff;
-  letter-spacing: -0.01em;
-  margin-bottom: 6px;
-}
-
-.squad-auth-sub {
-  font-size: 13px;
-  color: var(--text-dim);
-  line-height: 1.5;
+  padding: 32px 36px;
 }
 
 .squad-auth-modes {
   display: flex;
-  background: rgba(10, 15, 26, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(10, 15, 26, 0.7);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   padding: 3px;
-  margin-top: 20px;
   gap: 4px;
 }
 
@@ -4007,50 +3989,19 @@ button:active,
   padding: 8px 12px;
   background: transparent;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   color: var(--text-dim);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .btn-squad-mode.active {
-  background: rgba(56, 189, 248, 0.15);
-  color: #ffffff;
-  border: 1px solid rgba(56, 189, 248, 0.3);
-}
-
-.input-with-prefix {
-  display: flex;
-  align-items: center;
-  background: rgba(10, 15, 26, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--radius-sm);
-  padding-left: 12px;
-  transition: border-color 0.15s ease;
-}
-
-.input-with-prefix:focus-within {
-  border-color: var(--accent-cyan);
-}
-
-.input-with-prefix .input-prefix {
+  background: var(--bg-surface);
   color: var(--accent-cyan);
-  font-weight: 800;
-  font-size: 14px;
-  user-select: none;
-}
-
-.input-with-prefix input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  padding: 10px 12px 10px 6px;
-  color: #ffffff;
-  outline: none;
-  font-family: inherit;
-  font-size: 13px;
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 .squad-avatar-picker {
@@ -4061,14 +4012,14 @@ button:active,
 }
 
 .btn-avatar-choice {
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 20px;
-  background: rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(10, 15, 26, 0.75);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all 0.15s ease;
@@ -4081,9 +4032,9 @@ button:active,
 }
 
 .btn-avatar-choice.active {
-  background: rgba(56, 189, 248, 0.2);
+  background: rgba(56, 189, 248, 0.18);
   border-color: var(--accent-cyan);
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
 }
 
 .squad-auth-error {
@@ -4116,99 +4067,69 @@ button:active,
   box-shadow: 0 0 16px rgba(14, 165, 233, 0.4);
 }
 
-/* SQUAD DASHBOARD */
-.squad-grid-container {
-  display: grid;
-  grid-template-columns: 360px 1fr;
-  gap: 20px;
-}
-
-.squad-card {
-  background: rgba(13, 20, 33, 0.75);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: var(--radius-lg);
-  padding: 20px;
-  position: relative;
-}
-
-.squad-profile-header {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.squad-avatar-display {
-  width: 52px;
-  height: 52px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 26px;
-  background: rgba(15, 23, 42, 0.9);
-  border: 1px solid rgba(56, 189, 248, 0.3);
-  border-radius: 50%;
-  box-shadow: 0 0 16px rgba(56, 189, 248, 0.15);
-}
-
-.squad-profile-info {
+/* ========================================================
+   LEFT COLUMN: SQUAD COCKPIT CARD
+   ======================================================== */
+.squad-column-cockpit {
   display: flex;
   flex-direction: column;
-  gap: 4px;
 }
 
-.squad-profile-username {
-  font-size: 16px;
-  font-weight: 900;
-  color: #ffffff;
-  letter-spacing: -0.01em;
+.squad-cockpit-unified {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-height: 520px;
 }
 
-.squad-profile-status-pill {
+.cockpit-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cockpit-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.squad-live-badge-soft {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  padding: 3px 9px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 9999px;
+  color: #10b981;
   font-size: 11px;
   font-weight: 800;
-  color: #10b981;
+  letter-spacing: 0.02em;
 }
 
-.squad-profile-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+.pulse-dot-soft {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+  animation: pulse-soft 2s infinite ease-in-out;
 }
 
-.squad-stat-box {
-  background: rgba(10, 15, 26, 0.65);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: var(--radius-sm);
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
+@keyframes pulse-soft {
+  0%, 100% { opacity: 0.9; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+.btn-squad-signout-subtle {
+  display: inline-flex;
+  align-items: center;
   gap: 4px;
-}
-
-.squad-stat-label {
-  font-size: 10px;
-  font-weight: 800;
-  color: var(--text-dim);
-  letter-spacing: 0.04em;
-}
-
-.squad-stat-val {
-  font-family: var(--font-mono);
-  font-size: 16px;
-  font-weight: 900;
-  color: #ffffff;
-}
-
-.btn-squad-logout {
-  width: 100%;
-  padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.04);
+  background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--radius-sm);
+  border-radius: 6px;
+  padding: 4px 8px;
   color: var(--text-dim);
   font-size: 11px;
   font-weight: 700;
@@ -4216,81 +4137,162 @@ button:active,
   transition: all 0.15s ease;
 }
 
-.btn-squad-logout:hover {
+.btn-squad-signout-subtle:hover {
   background: rgba(239, 68, 68, 0.12);
-  border-color: rgba(239, 68, 68, 0.3);
-  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
 }
 
-.squad-card-title-row {
+/* Profile Hero Row & Telemetry Wells */
+.squad-profile-hero-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.squad-avatar-frame {
+  width: 54px;
+  height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  background: rgba(10, 15, 26, 0.9);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 50%;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  flex-shrink: 0;
+}
+
+.squad-hero-telemetry {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  flex: 1;
+}
+
+.squad-telemetry-well {
+  background: rgba(10, 15, 26, 0.75);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.squad-well-label {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--text-dim);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.squad-well-val {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 900;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+}
+
+.squad-cockpit-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.06);
+  width: 100%;
+}
+
+/* Add Friend Section */
+.squad-section-label-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.squad-card-heading {
-  font-size: 13px;
-  font-weight: 800;
-  color: #ffffff;
-  letter-spacing: 0.02em;
+.btn-copy-my-handle {
+  background: transparent;
+  border: none;
+  font-size: 11px;
+  color: var(--text-dim);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.15s ease;
 }
 
-.squad-card-badge {
-  font-size: 10px;
-  font-weight: 800;
+.btn-copy-my-handle strong {
   color: var(--accent-cyan);
-  background: rgba(56, 189, 248, 0.1);
-  padding: 2px 6px;
-  border-radius: 4px;
+  font-weight: 700;
 }
 
-.squad-helper-text {
+.btn-copy-my-handle:hover strong {
+  text-decoration: underline;
+}
+
+.squad-micro-copy {
   font-size: 11px;
   color: var(--text-dim);
   line-height: 1.4;
   margin-top: 4px;
 }
 
-.add-friend-input-group {
+.squad-input-well {
   display: flex;
   align-items: center;
-  background: rgba(10, 15, 26, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(10, 15, 26, 0.85);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  padding-left: 10px;
-  transition: border-color 0.15s ease;
+  padding: 4px 6px 4px 12px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.add-friend-input-group:focus-within {
+.squad-input-well:focus-within {
   border-color: var(--accent-cyan);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);
 }
 
-.add-friend-input-group input {
+.squad-input-at {
+  color: var(--accent-cyan);
+  font-weight: 800;
+  font-size: 14px;
+  user-select: none;
+}
+
+.squad-friend-input {
   flex: 1;
   background: transparent;
   border: none;
-  padding: 8px 8px 8px 4px;
+  padding: 8px 8px 8px 6px;
   color: #ffffff;
   outline: none;
+  font-family: inherit;
   font-size: 12px;
+  font-weight: 600;
 }
 
-.btn-add-friend {
-  padding: 6px 12px;
-  background: rgba(56, 189, 248, 0.15);
-  border: 1px solid rgba(56, 189, 248, 0.3);
-  border-radius: 4px;
-  color: var(--accent-cyan);
+.squad-friend-input::placeholder {
+  color: var(--text-dim);
+  opacity: 0.6;
+}
+
+.btn-squad-add-primary {
+  padding: 7px 14px;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  border-radius: 7px;
+  color: #ffffff;
   font-size: 11px;
   font-weight: 800;
   cursor: pointer;
-  margin-right: 4px;
   transition: all 0.15s ease;
+  user-select: none;
 }
 
-.btn-add-friend:hover {
-  background: rgba(56, 189, 248, 0.3);
-  color: #ffffff;
+.btn-squad-add-primary:hover {
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  box-shadow: 0 0 12px rgba(14, 165, 233, 0.35);
 }
 
 .squad-feedback-msg {
@@ -4298,7 +4300,7 @@ button:active,
   font-size: 11px;
   font-weight: 700;
   padding: 6px 10px;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 .squad-feedback-msg.success {
@@ -4309,22 +4311,68 @@ button:active,
 
 .squad-feedback-msg.error {
   background: rgba(239, 68, 68, 0.12);
-  color: #f87171;
+  color: #fca5a5;
   border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
-/* FEED HEADER & FILTERS */
-.squad-feed-header {
+/* Tip Well */
+.squad-tip-well {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: rgba(10, 15, 26, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-top: auto;
+}
+
+.squad-tip-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.squad-tip-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.squad-tip-title {
+  font-size: 11px;
+  font-weight: 800;
+  color: #e2e8f0;
+  letter-spacing: 0.02em;
+}
+
+.squad-tip-text {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+/* ========================================================
+   RIGHT COLUMN: SQUAD STUDY FEED
+   ======================================================== */
+.squad-column-feed {
+  display: flex;
+  flex-direction: column;
+}
+
+.squad-feed-card {
+  padding: 24px 26px;
+  min-height: 520px;
+  display: flex;
+  flex-direction: column;
+}
+
+.squad-feed-header-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding-bottom: 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.squad-card-sub {
-  font-size: 11px;
-  color: var(--text-dim);
 }
 
 .squad-feed-filters {
@@ -4333,52 +4381,160 @@ button:active,
 }
 
 .squad-filter-pill {
-  padding: 4px 10px;
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 5px 12px;
+  background: rgba(10, 15, 26, 0.7);
+  border: 1px solid var(--border-subtle);
   border-radius: 9999px;
   color: var(--text-dim);
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s ease;
+  font-variant-numeric: tabular-nums;
+}
+
+.squad-filter-pill:hover {
+  color: var(--text-main);
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 .squad-filter-pill.active {
   background: rgba(56, 189, 248, 0.15);
   border-color: rgba(56, 189, 248, 0.4);
-  color: #ffffff;
+  color: var(--accent-cyan);
 }
 
-/* FRIEND CARDS IN FEED */
-.squad-friends-list {
+.squad-friends-scroll-well {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-height: 520px;
+  flex: 1;
   overflow-y: auto;
-  margin-top: 14px;
+  max-height: 520px;
 }
 
+/* CRAFTED ZERO-FRIEND SETUP / PREVIEW GUIDE */
+.squad-empty-guide {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px 24px;
+  text-align: center;
+  flex: 1;
+}
+
+.squad-empty-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.squad-empty-icon-frame {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  margin-bottom: 6px;
+}
+
+.squad-empty-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.squad-empty-sub {
+  font-size: 12px;
+  color: var(--text-dim);
+  max-width: 440px;
+  line-height: 1.5;
+}
+
+.squad-preview-mockup {
+  width: 100%;
+  max-width: 520px;
+  margin-top: 24px;
+  background: rgba(10, 15, 26, 0.55);
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.squad-preview-mockup-label {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--text-dim);
+  letter-spacing: 0.05em;
+  text-align: left;
+}
+
+.squad-friend-card.preview-card {
+  opacity: 0.85;
+  pointer-events: none;
+  background: rgba(15, 23, 42, 0.65);
+}
+
+.btn-friend-boost.preview-boost {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.squad-empty-footer {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.btn-empty-focus-input {
+  background: transparent;
+  border: none;
+  color: var(--accent-cyan);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-empty-focus-input:hover {
+  text-decoration: underline;
+  transform: translateX(3px);
+}
+
+/* SQUAD FRIEND CARD (Live Populated) */
 .squad-friend-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: rgba(10, 15, 26, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  gap: 16px;
+  background: rgba(10, 15, 26, 0.75);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  padding: 14px 16px;
+  padding: 14px 18px;
   transition: all 0.15s ease;
 }
 
 .squad-friend-card:hover {
   background: rgba(15, 23, 42, 0.85);
-  border-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .squad-friend-card.studying {
-  border-color: rgba(16, 185, 129, 0.3);
-  background: rgba(6, 78, 59, 0.15);
+  border-color: rgba(16, 185, 129, 0.35);
+  background: rgba(6, 78, 59, 0.12);
 }
 
 .friend-card-left {
@@ -4396,15 +4552,15 @@ button:active,
   align-items: center;
   justify-content: center;
   font-size: 22px;
-  background: rgba(15, 23, 42, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid var(--border-subtle);
   border-radius: 50%;
   flex-shrink: 0;
 }
 
 .squad-friend-card.studying .friend-avatar {
   border-color: #10b981;
-  box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.35);
 }
 
 .friend-meta {
@@ -4429,7 +4585,7 @@ button:active,
 .friend-status-badge {
   font-size: 10px;
   font-weight: 800;
-  padding: 2px 6px;
+  padding: 2px 7px;
   border-radius: 4px;
   letter-spacing: 0.02em;
 }
@@ -4453,7 +4609,7 @@ button:active,
 }
 
 .friend-activity-text {
-  font-size: 11px;
+  font-size: 12px;
   color: #cbd5e1;
   white-space: nowrap;
   overflow: hidden;
@@ -4486,6 +4642,7 @@ button:active,
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
 }
 
 .btn-friend-boost {
@@ -4516,35 +4673,12 @@ button:active,
   color: var(--text-dim);
   font-size: 12px;
   cursor: pointer;
-  padding: 4px;
+  padding: 4px 6px;
   border-radius: 4px;
   transition: all 0.15s ease;
 }
 
 .btn-friend-remove:hover {
   color: #f87171;
-  background: rgba(239, 68, 68, 0.1);
-}
-
-.squad-empty-state {
-  text-align: center;
-  padding: 48px 16px;
-  color: var(--text-dim);
-}
-
-.squad-empty-icon {
-  font-size: 36px;
-  margin-bottom: 8px;
-}
-
-.squad-empty-title {
-  font-size: 14px;
-  font-weight: 800;
-  color: #ffffff;
-  margin-bottom: 4px;
-}
-
-.squad-empty-sub {
-  font-size: 12px;
-  line-height: 1.5;
+  background: rgba(239, 68, 68, 0.12);
 }
