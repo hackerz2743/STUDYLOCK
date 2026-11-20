@@ -9,7 +9,15 @@
     "pack": "electron-builder --dir",
     "dist": "electron-builder --win portable nsis"
   },
-  "keywords": ["study", "focus", "desk-clock", "immersion", "youtube-player", "jee", "neet"],
+  "keywords": [
+    "study",
+    "focus",
+    "desk-clock",
+    "immersion",
+    "youtube-player",
+    "jee",
+    "neet"
+  ],
   "author": "Antigravity",
   "license": "MIT",
   "build": {
@@ -27,11 +35,15 @@
       "target": [
         {
           "target": "portable",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "requestedExecutionLevel": "asInvoker"
@@ -53,5 +65,8 @@
   "devDependencies": {
     "electron": "^45.3.4",
     "electron-builder": "^26.18.0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.119.2"
   }
 }

@@ -57,6 +57,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupTargetLockInModal();
   setupDistractionFrictionEngine();
   await setupAnalysisSection();
+  await setupSquadSection();
 });
 
 // ========================================================
@@ -787,6 +788,16 @@ function startSessionEngine(config) {
   window.api.setActiveSession(activeSession);
   lastAutosaveTimestamp = Date.now();
 
+  // Notify Squad Presence of Active Study Session
+  if (window.api && window.api.squadUpdateStatus) {
+    window.api.squadUpdateStatus({
+      isStudying: true,
+      subject: activeSession.subject || 'General Study',
+      topic: activeSession.topic || 'Focus Session',
+      todayStudySeconds: computeTodayTotalStudySeconds()
+    }).catch(() => {});
+  }
+
   if (rafTimerId) cancelAnimationFrame(rafTimerId);
   tickSession();
 }
@@ -811,6 +822,19 @@ function tickSession() {
     currentSessionRecord.durationSeconds = Math.max(1, elapsed);
     window.api.saveStudySession(currentSessionRecord);
     lastAutosaveTimestamp = now;
+  }
+
+  // Periodic Squad Telemetry Sync (every 45 seconds while studying)
+  if (now - lastSquadHeartbeatTimestamp >= 45000) {
+    lastSquadHeartbeatTimestamp = now;
+    if (window.api && window.api.squadUpdateStatus) {
+      window.api.squadUpdateStatus({
+        isStudying: true,
+        subject: activeSession.subject || 'General Study',
+        topic: activeSession.topic || 'Focus Session',
+        todayStudySeconds: computeTodayTotalStudySeconds()
+      }).catch(() => {});
+    }
   }
 
   const targetSec = activeSession.targetMinutes * 60;
@@ -980,6 +1004,16 @@ async function finishAndSaveSession(exitReason = 'target_completed') {
 
   // 3. Reload from disk to guarantee 100% data sync
   await loadStudyData();
+
+  // Notify Squad Presence that session ended
+  if (window.api && window.api.squadUpdateStatus) {
+    window.api.squadUpdateStatus({
+      isStudying: false,
+      subject: '',
+      topic: '',
+      todayStudySeconds: computeTodayTotalStudySeconds()
+    }).catch(() => {});
+  }
 
   // 4. Show sleek macOS toast confirmation of saved study session
   showToastNotification(`✓ Session complete: ${savedDuration} studied in ${savedSubject} saved to vault!`);
@@ -2701,4 +2735,428 @@ async function renderAnalysis() {
       }).join('');
     }
   }
+}
+
+// ========================================================
+// TAB 5: STUDY SQUAD (Multiplayer Live Presence & Friends)
+// ========================================================
+let squadCurrentUser = null;
+let squadFriends = [];
+let squadSelectedAvatar = '⚡';
+let squadAuthMode = 'login'; // 'login' | 'signup'
+let squadActiveFilter = 'all'; // 'all' | 'studying' | 'idle'
+let squadTimerInterval = null;
+let lastSquadHeartbeatTimestamp = 0;
+
+function computeTodayTotalStudySeconds() {
+  const allSessions = (studyData && studyData.sessions) ? studyData.sessions : [];
+  const today = new Date();
+  const daySessions = allSessions.filter(s => isSameLocalDate(s.completedAt, today));
+  let total = daySessions.reduce((acc, s) => acc + (s.durationSeconds || 0), 0);
+  if (activeSession && activeSession.elapsedSeconds) {
+    total += activeSession.elapsedSeconds;
+  }
+  return total;
+}
+
+async function setupSquadSection() {
+  const btnLoginMode = document.getElementById('btnSquadModeLogin');
+  const btnSignupMode = document.getElementById('btnSquadModeSignup');
+  const groupUsername = document.getElementById('groupSquadUsername');
+  const groupAvatar = document.getElementById('groupSquadAvatar');
+  const submitText = document.getElementById('squadSubmitText');
+  const authForm = document.getElementById('squadAuthForm');
+  const authError = document.getElementById('squadAuthError');
+  const avatarPicker = document.getElementById('squadAvatarPicker');
+  const btnLogout = document.getElementById('btnSquadLogout');
+  const formAddFriend = document.getElementById('formAddFriend');
+  const filterPills = document.querySelectorAll('.squad-filter-pill');
+  const friendsListEl = document.getElementById('squadFriendsList');
+
+  // 1. Auth Mode Toggles
+  if (btnLoginMode && btnSignupMode) {
+    btnLoginMode.addEventListener('click', () => {
+      squadAuthMode = 'login';
+      btnLoginMode.classList.add('active');
+      btnSignupMode.classList.remove('active');
+      if (groupUsername) groupUsername.classList.add('hidden');
+      if (groupAvatar) groupAvatar.classList.add('hidden');
+      if (submitText) submitText.textContent = 'Sign In to Squad';
+      if (authError) authError.classList.add('hidden');
+    });
+
+    btnSignupMode.addEventListener('click', () => {
+      squadAuthMode = 'signup';
+      btnSignupMode.classList.add('active');
+      btnLoginMode.classList.remove('active');
+      if (groupUsername) groupUsername.classList.remove('hidden');
+      if (groupAvatar) groupAvatar.classList.remove('hidden');
+      if (submitText) submitText.textContent = 'Create Squad Profile';
+      if (authError) authError.classList.add('hidden');
+    });
+  }
+
+  // 2. Avatar Picker Choices
+  if (avatarPicker) {
+    avatarPicker.addEventListener('click', (e) => {
+      const btn = e.target.closest('.btn-avatar-choice');
+      if (!btn) return;
+      avatarPicker.querySelectorAll('.btn-avatar-choice').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      squadSelectedAvatar = btn.dataset.avatar || '⚡';
+    });
+  }
+
+  // 3. Auth Form Submit
+  if (authForm) {
+    authForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (authError) authError.classList.add('hidden');
+
+      const emailInput = document.getElementById('squadInputEmail');
+      const passInput = document.getElementById('squadInputPassword');
+      const userInput = document.getElementById('squadInputUsername');
+
+      const email = emailInput ? emailInput.value.trim() : '';
+      const password = passInput ? passInput.value.trim() : '';
+      const username = userInput ? userInput.value.trim() : '';
+
+      const submitBtn = document.getElementById('btnSquadSubmitAuth');
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.6';
+      }
+
+      try {
+        if (squadAuthMode === 'signup') {
+          if (!username) throw new Error('Please pick a unique username');
+          const res = await window.api.squadSignup({
+            email,
+            password,
+            username,
+            avatarUrl: squadSelectedAvatar
+          });
+          if (res.error) throw new Error(res.error);
+          squadCurrentUser = res.profile || res.user;
+          showToastNotification(`🎉 Welcome to Study Squad, @${res.profile?.username || username}!`);
+        } else {
+          const res = await window.api.squadLogin({ email, password });
+          if (res.error) throw new Error(res.error);
+          squadCurrentUser = res.profile || res.user;
+          showToastNotification(`✓ Signed in as @${res.profile?.username || 'Student'}`);
+        }
+
+        renderSquadView();
+      } catch (err) {
+        if (authError) {
+          authError.textContent = err.message || 'Authentication error';
+          authError.classList.remove('hidden');
+        }
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.style.opacity = '1';
+        }
+      }
+    });
+  }
+
+  // 4. Logout
+  if (btnLogout) {
+    btnLogout.addEventListener('click', async () => {
+      await window.api.squadLogout();
+      squadCurrentUser = null;
+      squadFriends = [];
+      showToastNotification('Logged out from Study Squad');
+      renderSquadView();
+    });
+  }
+
+  // 5. Add Friend Form
+  if (formAddFriend) {
+    formAddFriend.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = document.getElementById('inputFriendUsername');
+      const msgEl = document.getElementById('squadAddFriendMsg');
+      const username = input ? input.value.trim() : '';
+      if (!username) return;
+
+      if (msgEl) {
+        msgEl.className = 'squad-feedback-msg';
+        msgEl.textContent = 'Connecting with friend...';
+        msgEl.classList.remove('hidden');
+      }
+
+      try {
+        const res = await window.api.squadAddFriend(username);
+        if (res.error) throw new Error(res.error);
+
+        if (input) input.value = '';
+        if (msgEl) {
+          msgEl.className = 'squad-feedback-msg success';
+          msgEl.textContent = `✓ Connected with @${res.friend?.username || username}!`;
+          setTimeout(() => msgEl.classList.add('hidden'), 4000);
+        }
+        showToastNotification(`👥 Added @${res.friend?.username || username} to your Squad!`);
+        await loadSquadFriends();
+      } catch (err) {
+        if (msgEl) {
+          msgEl.className = 'squad-feedback-msg error';
+          msgEl.textContent = err.message || 'Failed to add friend';
+        }
+      }
+    });
+  }
+
+  // 6. Filter Pills
+  filterPills.forEach(pill => {
+    pill.addEventListener('click', () => {
+      filterPills.forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      squadActiveFilter = pill.dataset.filter || 'all';
+      renderSquadFriends();
+    });
+  });
+
+  // 7. Friend Card Event Delegation (Boost & Remove)
+  if (friendsListEl) {
+    friendsListEl.addEventListener('click', async (e) => {
+      const boostBtn = e.target.closest('.btn-friend-boost');
+      if (boostBtn) {
+        e.stopPropagation();
+        const username = boostBtn.dataset.username;
+        showToastNotification(`🔥 You boosted @${username}! Keep grinding together!`);
+        boostBtn.style.transform = 'scale(1.2)';
+        setTimeout(() => boostBtn.style.transform = 'scale(1)', 200);
+        return;
+      }
+
+      const removeBtn = e.target.closest('.btn-friend-remove');
+      if (removeBtn) {
+        e.stopPropagation();
+        const friendId = removeBtn.dataset.id;
+        const friendName = removeBtn.dataset.username;
+        if (confirm(`Remove @${friendName} from your Study Squad?`)) {
+          await window.api.squadRemoveFriend(friendId);
+          showToastNotification(`Removed @${friendName} from squad`);
+          await loadSquadFriends();
+        }
+        return;
+      }
+    });
+  }
+
+  // 8. Realtime Listeners from Main Process
+  if (window.api && window.api.onSquadProfileUpdated) {
+    window.api.onSquadProfileUpdated((updatedProfile) => {
+      // If one of our friends updated, update them locally
+      const idx = squadFriends.findIndex(f => f.id === updatedProfile.id);
+      if (idx >= 0) {
+        squadFriends[idx] = {
+          ...squadFriends[idx],
+          isStudying: updatedProfile.is_studying,
+          presenceState: updatedProfile.is_studying ? 'studying' : 'idle',
+          currentSubject: updatedProfile.current_subject,
+          currentTopic: updatedProfile.current_topic,
+          sessionStartedAt: updatedProfile.session_started_at,
+          todayStudySeconds: updatedProfile.today_study_seconds,
+          lastHeartbeat: updatedProfile.last_heartbeat
+        };
+        renderSquadFriends();
+      }
+    });
+  }
+
+  if (window.api && window.api.onSquadFriendsUpdated) {
+    window.api.onSquadFriendsUpdated(() => {
+      loadSquadFriends();
+    });
+  }
+
+  // 9. Initial Load Check
+  try {
+    const profile = await window.api.squadGetProfile();
+    if (profile) {
+      squadCurrentUser = profile;
+    }
+  } catch (e) {}
+
+  renderSquadView();
+
+  // 10. Start 1-second live ticker for studying friends
+  if (squadTimerInterval) clearInterval(squadTimerInterval);
+  squadTimerInterval = setInterval(() => {
+    updateSquadLiveTimers();
+  }, 1000);
+}
+
+async function renderSquadView() {
+  const authView = document.getElementById('squadAuthView');
+  const dashView = document.getElementById('squadDashboardView');
+
+  if (!squadCurrentUser) {
+    if (authView) authView.classList.remove('hidden');
+    if (dashView) dashView.classList.add('hidden');
+  } else {
+    if (authView) authView.classList.add('hidden');
+    if (dashView) dashView.classList.remove('hidden');
+
+    // Populate user profile card
+    const avatarEl = document.getElementById('squadUserAvatar');
+    const userEl = document.getElementById('squadUserUsername');
+    const hoursEl = document.getElementById('squadUserTodayHours');
+    const countEl = document.getElementById('squadUserFriendCount');
+
+    if (avatarEl) avatarEl.textContent = squadCurrentUser.avatar_url || '⚡';
+    if (userEl) userEl.textContent = `@${squadCurrentUser.username || 'Student'}`;
+    if (hoursEl) {
+      const todaySecs = computeTodayTotalStudySeconds();
+      hoursEl.textContent = formatDurationShortHM(todaySecs);
+    }
+
+    await loadSquadFriends();
+  }
+}
+
+async function loadSquadFriends() {
+  if (!squadCurrentUser) return;
+  try {
+    const friends = await window.api.squadGetFriends();
+    squadFriends = friends || [];
+    const countEl = document.getElementById('squadUserFriendCount');
+    if (countEl) countEl.textContent = squadFriends.length;
+    renderSquadFriends();
+  } catch (err) {
+    console.error('Failed to load squad friends:', err);
+  }
+}
+
+function renderSquadFriends() {
+  const listEl = document.getElementById('squadFriendsList');
+  const countAll = document.getElementById('squadCountAll');
+  const countStudying = document.getElementById('squadCountStudying');
+  const countIdle = document.getElementById('squadCountIdle');
+
+  if (!listEl) return;
+
+  const studyingCount = squadFriends.filter(f => f.presenceState === 'studying').length;
+  const idleCount = squadFriends.filter(f => f.presenceState !== 'studying').length;
+
+  if (countAll) countAll.textContent = squadFriends.length;
+  if (countStudying) countStudying.textContent = studyingCount;
+  if (countIdle) countIdle.textContent = idleCount;
+
+  // Filter according to active tab
+  let displayFriends = squadFriends;
+  if (squadActiveFilter === 'studying') {
+    displayFriends = squadFriends.filter(f => f.presenceState === 'studying');
+  } else if (squadActiveFilter === 'idle') {
+    displayFriends = squadFriends.filter(f => f.presenceState !== 'studying');
+  }
+
+  if (displayFriends.length === 0) {
+    if (squadFriends.length === 0) {
+      listEl.innerHTML = `
+        <div class="squad-empty-state">
+          <div class="squad-empty-icon">👥</div>
+          <div class="squad-empty-title">Your Study Squad is Empty</div>
+          <div class="squad-empty-sub">Add your friends using their username above to track each other's live study sessions!</div>
+        </div>
+      `;
+    } else {
+      listEl.innerHTML = `
+        <div class="squad-empty-state">
+          <div class="squad-empty-title">No friends currently ${squadActiveFilter === 'studying' ? 'studying' : 'idle'}</div>
+          <div class="squad-empty-sub">Switch filters to see all squad members.</div>
+        </div>
+      `;
+    }
+    return;
+  }
+
+  listEl.innerHTML = displayFriends.map(f => {
+    const isStudying = f.presenceState === 'studying';
+    const isIdle = f.presenceState === 'idle';
+
+    let badgeHtml = '';
+    let activityText = '';
+
+    if (isStudying) {
+      badgeHtml = `<span class="friend-status-badge badge-studying">🟢 LOCKED IN</span>`;
+      activityText = `${escapeHtml(f.currentSubject || 'Study')} • ${escapeHtml(f.currentTopic || 'Focus Session')}`;
+    } else if (isIdle) {
+      badgeHtml = `<span class="friend-status-badge badge-idle">🟡 ON BREAK</span>`;
+      activityText = `Taking a break • Last active recently`;
+    } else {
+      badgeHtml = `<span class="friend-status-badge badge-offline">⚪ OFFLINE</span>`;
+      activityText = `Not active right now`;
+    }
+
+    const todayDuration = formatDurationShortHM(f.todayStudySeconds || 0);
+
+    return `
+      <div class="squad-friend-card ${isStudying ? 'studying' : ''}" data-friend-id="${f.id}" data-started-at="${f.sessionStartedAt || ''}">
+        <div class="friend-card-left">
+          <div class="friend-avatar">${escapeHtml(f.avatarUrl || '⚡')}</div>
+          <div class="friend-meta">
+            <div class="friend-name-row">
+              <span class="friend-username">@${escapeHtml(f.username)}</span>
+              ${badgeHtml}
+            </div>
+            <span class="friend-activity-text">${activityText}</span>
+          </div>
+        </div>
+
+        <div class="friend-card-right">
+          <div class="friend-telemetry-block">
+            ${isStudying ? `<span class="friend-live-timer" id="timer_friend_${f.id}">⏱️ calculating...</span>` : ''}
+            <span class="friend-today-total">🔥 ${todayDuration} today</span>
+          </div>
+          <button type="button" class="btn-friend-boost" data-username="${escapeHtml(f.username)}" title="Send a boost / cheer!">
+            🔥 Boost
+          </button>
+          <button type="button" class="btn-friend-remove" data-id="${f.id}" data-username="${escapeHtml(f.username)}" title="Remove Friend">
+            ✕
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateSquadLiveTimers();
+}
+
+function updateSquadLiveTimers() {
+  const cards = document.querySelectorAll('.squad-friend-card.studying');
+  const now = Date.now();
+
+  cards.forEach(card => {
+    const friendId = card.dataset.friendId;
+    const startedAt = card.dataset.startedAt;
+    const timerEl = document.getElementById(`timer_friend_${friendId}`);
+
+    if (timerEl && startedAt) {
+      const startMs = new Date(startedAt).getTime();
+      if (!isNaN(startMs) && startMs > 0) {
+        const elapsedSec = Math.max(0, Math.floor((now - startMs) / 1000));
+        const m = Math.floor(elapsedSec / 60);
+        const s = elapsedSec % 60;
+        const h = Math.floor(m / 60);
+        const remM = m % 60;
+
+        if (h > 0) {
+          timerEl.textContent = `⏱️ ${h}h ${remM}m ${String(s).padStart(2, '0')}s`;
+        } else {
+          timerEl.textContent = `⏱️ ${m}m ${String(s).padStart(2, '0')}s`;
+        }
+      }
+    }
+  });
+}
+
+function formatDurationShortHM(seconds) {
+  if (!seconds || seconds <= 0) return '00h 00m';
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return `${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`;
 }

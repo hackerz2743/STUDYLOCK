@@ -29,6 +29,9 @@
       <button class="nav-segment-btn" data-tab="tabAnalysis">
         <span class="segment-label">📊 Analysis</span>
       </button>
+      <button class="nav-segment-btn" data-tab="tabSquad">
+        <span class="segment-label">👥 Squad</span>
+      </button>
     </nav>
 
     <div class="titlebar-right">
@@ -691,6 +694,161 @@
             </div>
           </div>
 
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ==================== TAB 5: STUDY SQUAD (Multiplayer Live Presence) ==================== -->
+    <section id="tabSquad" class="tab-pane">
+      <div class="squad-viewport-container">
+
+        <!-- SQUAD AUTH VIEW (Shown when logged out) -->
+        <div id="squadAuthView" class="squad-auth-wrapper">
+          <div class="squad-auth-card">
+            <div class="squad-auth-header">
+              <div class="squad-pill-badge">
+                <span class="pulse-dot"></span>
+                <span>MULTIPLAYER STUDY SQUAD</span>
+              </div>
+              <h1 class="squad-auth-title">STUDY TOGETHER. STAY ACCOUNTABLE.</h1>
+              <p class="squad-auth-sub">Connect with your friends, see their live study sessions in real-time, and compete without distractions.</p>
+            </div>
+
+            <!-- Auth Mode Switcher -->
+            <div class="squad-auth-modes">
+              <button type="button" id="btnSquadModeLogin" class="btn-squad-mode active">Sign In</button>
+              <button type="button" id="btnSquadModeSignup" class="btn-squad-mode">Create Account</button>
+            </div>
+
+            <!-- Auth Form -->
+            <form id="squadAuthForm" class="squad-form mt-4">
+              <!-- Username (Signup only) -->
+              <div id="groupSquadUsername" class="form-group hidden">
+                <label class="form-label-bold">USERNAME (FOR FRIENDS TO ADD YOU)</label>
+                <div class="input-with-prefix">
+                  <span class="input-prefix">@</span>
+                  <input type="text" id="squadInputUsername" class="bold-input-standard" placeholder="e.g. bhavishy" maxlength="24">
+                </div>
+              </div>
+
+              <!-- Avatar Picker (Signup only) -->
+              <div id="groupSquadAvatar" class="form-group hidden mt-3">
+                <label class="form-label-bold">PICK YOUR SQUAD AVATAR</label>
+                <div class="squad-avatar-picker" id="squadAvatarPicker">
+                  <button type="button" class="btn-avatar-choice active" data-avatar="⚡">⚡</button>
+                  <button type="button" class="btn-avatar-choice" data-avatar="🚀">🚀</button>
+                  <button type="button" class="btn-avatar-choice" data-avatar="🦉">🦉</button>
+                  <button type="button" class="btn-avatar-choice" data-avatar="🎯">🎯</button>
+                  <button type="button" class="btn-avatar-choice" data-avatar="🧠">🧠</button>
+                  <button type="button" class="btn-avatar-choice" data-avatar="☕">☕</button>
+                  <button type="button" class="btn-avatar-choice" data-avatar="🔬">🔬</button>
+                  <button type="button" class="btn-avatar-choice" data-avatar="🏆">🏆</button>
+                </div>
+              </div>
+
+              <!-- Email -->
+              <div class="form-group mt-3">
+                <label class="form-label-bold">EMAIL</label>
+                <input type="email" id="squadInputEmail" class="bold-input-standard" placeholder="youremail@example.com" required>
+              </div>
+
+              <!-- Password -->
+              <div class="form-group mt-3">
+                <label class="form-label-bold">PASSWORD</label>
+                <input type="password" id="squadInputPassword" class="bold-input-standard" placeholder="••••••••" minlength="6" required>
+              </div>
+
+              <div id="squadAuthError" class="squad-auth-error hidden"></div>
+
+              <button type="submit" id="btnSquadSubmitAuth" class="btn-squad-submit mt-4">
+                <span id="squadSubmitText">Sign In to Squad</span>
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- SQUAD DASHBOARD VIEW (Shown when logged in) -->
+        <div id="squadDashboardView" class="squad-dashboard-wrapper hidden">
+          <div class="squad-grid-container">
+
+            <!-- LEFT COLUMN: Your Profile & Add Friends -->
+            <div class="squad-column-left">
+              
+              <!-- Your Profile Card -->
+              <div class="squad-card squad-profile-card">
+                <div class="squad-profile-header">
+                  <div class="squad-avatar-display" id="squadUserAvatar">⚡</div>
+                  <div class="squad-profile-info">
+                    <span class="squad-profile-username" id="squadUserUsername">@username</span>
+                    <span class="squad-profile-status-pill" id="squadUserStatusPill">
+                      <span class="pulse-dot"></span>
+                      <span id="squadUserStatusText">Online</span>
+                    </span>
+                  </div>
+                </div>
+
+                <div class="squad-profile-stats mt-3">
+                  <div class="squad-stat-box">
+                    <span class="squad-stat-label">TODAY'S STUDY</span>
+                    <span class="squad-stat-val" id="squadUserTodayHours">00h 00m</span>
+                  </div>
+                  <div class="squad-stat-box">
+                    <span class="squad-stat-label">FRIENDS</span>
+                    <span class="squad-stat-val" id="squadUserFriendCount">0</span>
+                  </div>
+                </div>
+
+                <button type="button" id="btnSquadLogout" class="btn-squad-logout mt-3">
+                  Sign Out
+                </button>
+              </div>
+
+              <!-- Add Friend Card -->
+              <div class="squad-card mt-3">
+                <div class="squad-card-title-row">
+                  <h3 class="squad-card-heading">ADD STUDY FRIEND</h3>
+                  <span class="squad-card-badge">Instant Sync</span>
+                </div>
+                <p class="squad-helper-text">Enter your friend's exact username to connect your live study feeds.</p>
+
+                <form id="formAddFriend" class="add-friend-form mt-2">
+                  <div class="add-friend-input-group">
+                    <span class="input-prefix">@</span>
+                    <input type="text" id="inputFriendUsername" class="bold-input-standard" placeholder="friend_username" maxlength="24" required>
+                    <button type="submit" id="btnAddFriendSubmit" class="btn-add-friend">
+                      + Add
+                    </button>
+                  </div>
+                </form>
+                <div id="squadAddFriendMsg" class="squad-feedback-msg hidden"></div>
+              </div>
+
+            </div>
+
+            <!-- RIGHT COLUMN: Squad Friends Live Feed -->
+            <div class="squad-column-right">
+              <div class="squad-card squad-feed-card">
+                <div class="squad-feed-header">
+                  <div>
+                    <h2 class="squad-card-heading">SQUAD STUDY FEED</h2>
+                    <span class="squad-card-sub">Live presence & study telemetry (auto-refreshed)</span>
+                  </div>
+                  <div class="squad-feed-filters">
+                    <button type="button" class="squad-filter-pill active" data-filter="all">All (<span id="squadCountAll">0</span>)</button>
+                    <button type="button" class="squad-filter-pill" data-filter="studying">🟢 Studying (<span id="squadCountStudying">0</span>)</button>
+                    <button type="button" class="squad-filter-pill" data-filter="idle">Idle / Off (<span id="squadCountIdle">0</span>)</button>
+                  </div>
+                </div>
+
+                <!-- Live Squad Friends List -->
+                <div id="squadFriendsList" class="squad-friends-list mt-3">
+                  <!-- Injected dynamically -->
+                </div>
+              </div>
+            </div>
+
+          </div>
         </div>
 
       </div>

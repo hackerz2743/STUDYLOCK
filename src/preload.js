@@ -26,5 +26,17 @@ contextBridge.exposeInMainWorld('api', {
   // Global Session Input Listeners (Bypasses Guest Webviews)
   onToggleParentProof: (callback) => {
     ipcRenderer.on('toggle-parent-proof-global', () => callback());
-  }
+  },
+
+  // Study Squad Multiplayer API
+  squadSignup: (data) => ipcRenderer.invoke('squad-signup', data),
+  squadLogin: (data) => ipcRenderer.invoke('squad-login', data),
+  squadLogout: () => ipcRenderer.invoke('squad-logout'),
+  squadGetProfile: () => ipcRenderer.invoke('squad-get-profile'),
+  squadUpdateStatus: (status) => ipcRenderer.invoke('squad-update-status', status),
+  squadAddFriend: (username) => ipcRenderer.invoke('squad-add-friend', username),
+  squadRemoveFriend: (friendId) => ipcRenderer.invoke('squad-remove-friend', friendId),
+  squadGetFriends: () => ipcRenderer.invoke('squad-get-friends'),
+  onSquadProfileUpdated: (callback) => ipcRenderer.on('squad-profile-updated', (event, profile) => callback(profile)),
+  onSquadFriendsUpdated: (callback) => ipcRenderer.on('squad-friends-updated', () => callback())
 });

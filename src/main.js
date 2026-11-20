@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, globalShortcut, screen, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const squadService = require('./squadService');
 
 // Hardware acceleration & performance switches for 120+ FPS rendering
 app.commandLine.appendSwitch('enable-gpu-rasterization');
@@ -97,6 +98,7 @@ function createWindow() {
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
     mainWindow.focus();
+    squadService.initSquadService(mainWindow);
   });
 
   // Emergency Hardware Panic Chord: Ctrl + Alt + Shift + F12
@@ -119,6 +121,9 @@ function createWindow() {
   });
 
   mainWindow.on('close', () => {
+    // Notify squad service of app close to clear active presence
+    squadService.handleAppClose();
+
     // If a session is active on close, finalize and save immediately
     if (activeSessionData && activeSessionData.startTime) {
       const elapsedSeconds = Math.max(1, Math.round((Date.now() - activeSessionData.startTime) / 1000));
@@ -289,6 +294,73 @@ ipcMain.handle('set-floating-widget-mode', async (event, enabled) => {
     mainWindow.center();
   }
   return { isFloating: enabled };
+});
+
+// ========================================================
+// STUDY SQUAD (Multiplayer Realtime Cloud Presence)
+// ========================================================
+ipcMain.handle('squad-signup', async (event, payload) => {
+  try {
+    return await squadService.squadSignup(payload);
+  } catch (err) {
+    return { error: err.message };
+  }
+});
+
+ipcMain.handle('squad-login', async (event, payload) => {
+  try {
+    return await squadService.squadLogin(payload);
+  } catch (err) {
+    return { error: err.message };
+  }
+});
+
+ipcMain.handle('squad-logout', async () => {
+  try {
+    return await squadService.squadLogout();
+  } catch (err) {
+    return { error: err.message };
+  }
+});
+
+ipcMain.handle('squad-get-profile', async () => {
+  try {
+    return await squadService.squadGetProfile();
+  } catch (err) {
+    return null;
+  }
+});
+
+ipcMain.handle('squad-update-status', async (event, status) => {
+  try {
+    return await squadService.squadUpdateStatus(status);
+  } catch (err) {
+    return { error: err.message };
+  }
+});
+
+ipcMain.handle('squad-add-friend', async (event, username) => {
+  try {
+    return await squadService.squadAddFriend(username);
+  } catch (err) {
+    return { error: err.message };
+  }
+});
+
+ipcMain.handle('squad-remove-friend', async (event, friendId) => {
+  try {
+    return await squadService.squadRemoveFriend(friendId);
+  } catch (err) {
+    return { error: err.message };
+  }
+});
+
+ipcMain.handle('squad-get-friends', async () => {
+  try {
+    return await squadService.squadGetFriends();
+  } catch (err) {
+    return [];
+  }
 });
 
 // Window controls
