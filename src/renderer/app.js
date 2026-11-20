@@ -230,6 +230,16 @@ function setupPlayerSection() {
   // Permanent Bar Emergency Exit Button
   const btnEmerg = document.getElementById('btnPlayerEmergency');
   if (btnEmerg) btnEmerg.addEventListener('click', openEmergencyModal);
+
+  // Setup Screen: 1-Click RaySensei Account Sign-In
+  const btnRayAuth = document.getElementById('btnOpenRaySenseiAuth');
+  if (btnRayAuth) {
+    btnRayAuth.addEventListener('click', () => {
+      if (window.api && window.api.openRaySenseiLogin) {
+        window.api.openRaySenseiLogin();
+      }
+    });
+  }
 }
 
 function renderPreviewPlayer(videoId) {
@@ -243,7 +253,7 @@ function renderPreviewPlayer(videoId) {
 
   const webview = document.createElement('webview');
   webview.id = 'stagePreviewWebview';
-  webview.setAttribute('partition', 'persist:studylock_yt');
+  webview.setAttribute('partition', 'persist:studylock_session');
   webview.setAttribute('allowfullscreen', 'true');
   webview.setAttribute('useragent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36');
   webview.setAttribute('allowpopups', 'true');
@@ -456,7 +466,7 @@ function initDedicatedDualDeck(videoId) {
   ytWv.className = 'workspace-webview active-workspace';
   ytWv.setAttribute('allowfullscreen', 'true');
   ytWv.setAttribute('allowpopups', 'true');
-  ytWv.setAttribute('partition', 'persist:studylock_yt');
+  ytWv.setAttribute('partition', 'persist:studylock_session');
   ytWv.setAttribute('useragent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36');
   ytWv.src = `https://www.youtube.com/watch?v=${videoId}&autoplay=1`;
 
@@ -477,18 +487,6 @@ function initDedicatedDualDeck(videoId) {
         e.preventDefault();
       }
     } catch (err) {}
-  });
-
-  ytWv.addEventListener('new-window', (e) => {
-    try {
-      const parsed = new URL(e.url);
-      const host = parsed.hostname.toLowerCase();
-      if (host.includes('google.com') || host.includes('youtube.com') || host.includes('accounts.')) {
-        ytWv.loadURL(e.url);
-        return;
-      }
-    } catch (err) {}
-    e.preventDefault();
   });
 
   ytWv.addEventListener('enter-html-full-screen', () => {
@@ -523,7 +521,7 @@ function initDedicatedDualDeck(videoId) {
   rayWv.className = 'workspace-webview inactive-workspace';
   rayWv.setAttribute('allowfullscreen', 'true');
   rayWv.setAttribute('allowpopups', 'true');
-  rayWv.setAttribute('partition', 'persist:studylock_raysensei');
+  rayWv.setAttribute('partition', 'persist:studylock_session');
   rayWv.setAttribute('useragent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36');
   rayWv.src = 'https://app.raysensei.com/';
 
@@ -545,24 +543,6 @@ function initDedicatedDualDeck(videoId) {
     } catch (err) {
       e.preventDefault();
     }
-  });
-
-  rayWv.addEventListener('new-window', (e) => {
-    try {
-      const navUrl = new URL(e.url);
-      const navHost = navUrl.hostname.toLowerCase();
-      const isAllowed = navHost.includes('raysensei.com') ||
-                        navHost.includes('google.com') ||
-                        navHost.includes('firebaseapp.com') ||
-                        navHost.includes('supabase.co') ||
-                        navHost.includes('clerk.dev') ||
-                        navHost.includes('auth0.com');
-      if (isAllowed) {
-        rayWv.loadURL(e.url);
-        return;
-      }
-    } catch (err) {}
-    e.preventDefault();
   });
 
   // Prepend webviews so edge arrow buttons remain on top

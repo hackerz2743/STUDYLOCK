@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('api', {
   clearActiveSession: () => ipcRenderer.invoke('clear-active-session'),
   setLockIn: (enabled) => ipcRenderer.invoke('set-lock-in', enabled),
   setFloatingWidgetMode: (enabled) => ipcRenderer.invoke('set-floating-widget-mode', enabled),
+  openRaySenseiLogin: () => ipcRenderer.invoke('open-raysensei-login'),
   
   // Window management
   minimizeWindow: () => ipcRenderer.send('window-minimize'),

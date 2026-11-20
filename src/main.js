@@ -293,6 +293,44 @@ ipcMain.on('window-close', () => {
   }
 });
 
+// Dedicated Pre-Login Window for RaySensei / Google Account
+ipcMain.handle('open-raysensei-login', async () => {
+  if (isLockedIn) return;
+
+  const loginWin = new BrowserWindow({
+    width: 960,
+    height: 720,
+    center: true,
+    autoHideMenuBar: true,
+    title: 'StudyLock - RaySensei / Google Account Sign-In',
+    webPreferences: {
+      partition: 'persist:studylock_session',
+      nodeIntegration: false,
+      contextIsolation: true
+    }
+  });
+
+  loginWin.webContents.setUserAgent(CHROME_UA);
+  loginWin.loadURL('https://app.raysensei.com/');
+
+  loginWin.webContents.setWindowOpenHandler((details) => {
+    return {
+      action: 'allow',
+      overrideBrowserWindowOptions: {
+        width: 520,
+        height: 680,
+        center: true,
+        autoHideMenuBar: true,
+        webPreferences: {
+          partition: 'persist:studylock_session',
+          nodeIntegration: false,
+          contextIsolation: true
+        }
+      }
+    };
+  });
+});
+
 // Single instance lock
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
@@ -306,14 +344,17 @@ if (!gotTheLock) {
   });
 
   app.whenReady().then(() => {
-    // Configure default and isolated partitions with pristine Chrome User-Agent for Google/YouTube & RaySensei login
-    [session.defaultSession, session.fromPartition('persist:studylock_yt'), session.fromPartition('persist:studylock_raysensei')].forEach(ses => {
+    // Configure default and unified persistent session with pristine Chrome User-Agent
+    const unifiedSession = session.fromPartition('persist:studylock_session');
+    [session.defaultSession, unifiedSession].forEach(ses => {
       ses.setUserAgent(CHROME_UA);
       ses.webRequest.onBeforeSendHeaders(
-        { urls: ['*://*.youtube-nocookie.com/*', '*://*.youtube.com/embed/*'] },
+        { urls: ['*://*.youtube-nocookie.com/*', '*://*.youtube.com/embed/*', '*://*.google.com/*', '*://*.raysensei.com/*'] },
         (details, callback) => {
-          details.requestHeaders['Referer'] = 'https://www.youtube.com/';
           details.requestHeaders['User-Agent'] = CHROME_UA;
+          if (details.url.includes('youtube-nocookie.com') || details.url.includes('youtube.com/embed')) {
+            details.requestHeaders['Referer'] = 'https://www.youtube.com/';
+          }
           callback({ cancel: false, requestHeaders: details.requestHeaders });
         }
       );
@@ -321,8 +362,37 @@ if (!gotTheLock) {
 
     createWindow();
 
-    // Intercept keyboard inputs across all webcontents (including guest <webview> instances)
+    // Intercept keyboard inputs & handle OAuth popups across all webcontents (including guest <webview> instances)
     app.on('web-contents-created', (event, contents) => {
+      // Seamlessly allow Google OAuth and RaySensei child popups while preserving session cookies
+      contents.setWindowOpenHandler((details) => {
+        const urlStr = (details.url || '').toLowerCase();
+        const isAuthPopup = urlStr.includes('google.com') ||
+                            urlStr.includes('accounts.google') ||
+                            urlStr.includes('raysensei.com') ||
+                            urlStr.includes('firebaseapp.com') ||
+                            urlStr.includes('supabase.co') ||
+                            urlStr.includes('auth0.com') ||
+                            urlStr.includes('clerk.dev');
+        if (isAuthPopup) {
+          return {
+            action: 'allow',
+            overrideBrowserWindowOptions: {
+              width: 520,
+              height: 680,
+              center: true,
+              autoHideMenuBar: true,
+              alwaysOnTop: isLockedIn,
+              webPreferences: {
+                partition: 'persist:studylock_session',
+                nodeIntegration: false,
+                contextIsolation: true
+              }
+            }
+          };
+        }
+        return { action: 'deny' };
+      });
       contents.on('before-input-event', (inputEvent, input) => {
         // Fast Refresh (Ctrl+R / F5) when not locked in
         if (input.type === 'keyDown' && ((input.control && (input.key === 'r' || input.key === 'R')) || input.key === 'F5')) {
