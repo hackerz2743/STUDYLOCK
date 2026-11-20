@@ -17,6 +17,11 @@ let ritualMode = 'random'; // 'random' | 'custom'
 let currentVideoId = '';
 let isParentProofOpen = false;
 
+// Whitelisted Multi-Resource Workspaces State
+let extraResourcesList = []; // Array of { id, title, url }
+let activeWorkspaces = []; // Array of { id, title, url, type, webviewEl }
+let activeWorkspaceIndex = 0;
+
 // Dual Clock Mode state
 let clockMode = 'locked'; // 'locked' | 'free'
 let isClockFloating = false;
@@ -41,12 +46,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupWindowControls();
   setupTabNavigation();
   setupPlayerSection();
+  setupResourceWhitelistUI();
   setupClockSection();
   setupParentProofOverlay();
   setupEmergencyExitModal();
   setupTimerExpiryModal();
   setupEmergencyChordListener();
   generateNewRandomCode();
+  renderExtraResourcesList();
 });
 
 // ========================================================
@@ -293,6 +300,94 @@ function extractYouTubeId(url) {
   return data ? data.videoId : null;
 }
 
+// ========================================================
+// Multi-Resource Whitelist & Workspace Engine
+// ========================================================
+function setupResourceWhitelistUI() {
+  const btnAddPw = document.getElementById('btnAddPwPreset');
+  const btnAddGpt = document.getElementById('btnAddGptPreset');
+  const btnAddCustom = document.getElementById('btnAddCustomPreset');
+
+  if (btnAddPw) {
+    btnAddPw.addEventListener('click', () => {
+      addExtraResource('PhysicsWallah', 'https://study.physicswallah.live/');
+    });
+  }
+  if (btnAddGpt) {
+    btnAddGpt.addEventListener('click', () => {
+      addExtraResource('ChatGPT Doubts', 'https://chatgpt.com/');
+    });
+  }
+  if (btnAddCustom) {
+    btnAddCustom.addEventListener('click', () => {
+      addExtraResource('Study Resource', '');
+    });
+  }
+
+  // In-session modal listeners
+  const btnCancelAdd = document.getElementById('btnCancelAddResource');
+  const btnConfirmAdd = document.getElementById('btnConfirmAddResource');
+  if (btnCancelAdd) {
+    btnCancelAdd.addEventListener('click', closeAddResourceModal);
+  }
+  if (btnConfirmAdd) {
+    btnConfirmAdd.addEventListener('click', handleConfirmAddResource);
+  }
+}
+
+function addExtraResource(title, url) {
+  const id = 'res_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+  extraResourcesList.push({ id, title, url });
+  renderExtraResourcesList();
+}
+
+function removeExtraResource(id) {
+  extraResourcesList = extraResourcesList.filter(r => r.id !== id);
+  renderExtraResourcesList();
+}
+
+function renderExtraResourcesList() {
+  const container = document.getElementById('extraResourcesContainer');
+  if (!container) return;
+
+  if (extraResourcesList.length === 0) {
+    container.innerHTML = '<div style="font-size: 11px; color: #64748b; font-style: italic; padding: 4px 0;">No extra websites added. You can add PhysicsWallah or ChatGPT above to use them in locked mode.</div>';
+    return;
+  }
+
+  container.innerHTML = '';
+  extraResourcesList.forEach((res) => {
+    const row = document.createElement('div');
+    row.className = 'resource-row-item';
+    row.innerHTML = `
+      <input type="text" class="resource-title-input" value="${escapeHtml(res.title)}" placeholder="Title (e.g. PW)" data-id="${res.id}">
+      <input type="text" class="resource-url-input" value="${escapeHtml(res.url)}" placeholder="https://..." data-id="${res.id}">
+      <button type="button" class="btn-remove-resource" title="Remove Resource" data-id="${res.id}">✕</button>
+    `;
+
+    const titleInput = row.querySelector('.resource-title-input');
+    const urlInput = row.querySelector('.resource-url-input');
+    const btnRemove = row.querySelector('.btn-remove-resource');
+
+    titleInput.addEventListener('input', (e) => {
+      res.title = e.target.value;
+    });
+    urlInput.addEventListener('input', (e) => {
+      res.url = e.target.value;
+    });
+    btnRemove.addEventListener('click', () => {
+      removeExtraResource(res.id);
+    });
+
+    container.appendChild(row);
+  });
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 function handlePlayerLaunch() {
   const url = document.getElementById('ytUrlInput').value.trim();
   const videoData = convertToYouTubeData(url);
@@ -329,8 +424,38 @@ function handlePlayerLaunch() {
   // Close preview in stage if open to stop duplicate audio
   closeStagePreview();
 
-  // Load Full Screen Direct Watch Webview
-  loadYouTubePlayer(videoData.videoId);
+  // Construct Multi-Resource Workspaces
+  const workspaces = [
+    {
+      id: 'ws_yt_primary',
+      title: 'YouTube Lecture',
+      url: `https://www.youtube.com/watch?v=${videoData.videoId}&autoplay=1`,
+      videoId: videoData.videoId,
+      type: 'youtube'
+    }
+  ];
+
+  extraResourcesList.forEach((res, idx) => {
+    let rawUrl = (res.url || '').trim();
+    if (!rawUrl) return;
+    if (!/^https?:\/\//i.test(rawUrl)) {
+      rawUrl = 'https://' + rawUrl;
+    }
+    const ytMatch = convertToYouTubeData(rawUrl);
+    workspaces.push({
+      id: 'ws_extra_' + idx,
+      title: res.title.trim() || `Resource ${workspaces.length + 1}`,
+      url: ytMatch ? `https://www.youtube.com/watch?v=${ytMatch.videoId}&autoplay=1` : rawUrl,
+      videoId: ytMatch ? ytMatch.videoId : null,
+      type: ytMatch ? 'youtube' : 'web'
+    });
+  });
+
+  activeWorkspaces = workspaces;
+  activeWorkspaceIndex = 0;
+
+  // Initialize all workspaces
+  initMultiWorkspaceEnvironment(activeWorkspaces);
 
   startSessionEngine({
     type: 'player',
@@ -344,56 +469,196 @@ function handlePlayerLaunch() {
   window.api.setLockIn(true);
 }
 
-function loadYouTubePlayer(videoId) {
-  const wrapper = document.getElementById('videoFrameWrapper');
-  wrapper.innerHTML = '';
+function initMultiWorkspaceEnvironment(workspaces) {
+  const tabsStrip = document.getElementById('workspaceTabsBar');
+  const webviewWrapper = document.getElementById('videoFrameWrapper');
 
-  const webview = document.createElement('webview');
-  webview.id = 'ytWebviewPlayer';
-  webview.setAttribute('partition', 'persist:studylock_yt');
-  webview.setAttribute('allowfullscreen', 'true');
-  webview.setAttribute('useragent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36');
-  webview.setAttribute('allowpopups', 'false');
-  webview.style.width = '100%';
-  webview.style.height = '100%';
-  webview.style.border = 'none';
-  webview.style.display = 'flex';
-  webview.style.flex = '1';
-  webview.src = `https://www.youtube.com/watch?v=${videoId}&autoplay=1`;
+  if (!tabsStrip || !webviewWrapper) return;
 
-  // Block roaming to other videos
-  webview.addEventListener('will-navigate', (e) => {
-    const targetId = extractYouTubeId(e.url || '');
-    if (targetId !== videoId) e.preventDefault();
-  });
+  tabsStrip.innerHTML = '';
+  webviewWrapper.innerHTML = '';
 
-  webview.addEventListener('new-window', (e) => e.preventDefault());
+  workspaces.forEach((ws, idx) => {
+    // 1. Top workspace tab button
+    const tabBtn = document.createElement('button');
+    tabBtn.className = `workspace-tab ${idx === activeWorkspaceIndex ? 'active' : ''}`;
+    tabBtn.dataset.index = idx;
+    tabBtn.innerHTML = `<span class="tab-num">${idx + 1}.</span> <span>${escapeHtml(ws.title)}</span>`;
+    tabBtn.addEventListener('click', () => switchWorkspace(idx));
+    tabsStrip.appendChild(tabBtn);
 
-  // Inject distraction-free lockdown CSS
-  webview.addEventListener('dom-ready', () => {
-    webview.insertCSS(`
-      #secondary, #related, ytd-watch-next-secondary-results-renderer, #comments, #masthead-container #center, #masthead-container #buttons, #masthead-container #voice-search-button, #guide-button, #guide-wrapper, ytd-mini-guide-renderer, .ytp-ce-element, .ytp-endscreen-content, #below {
-        display: none !important;
+    // 2. Sandboxed Webview
+    const webview = document.createElement('webview');
+    webview.id = `ws_webview_${idx}`;
+    webview.setAttribute('allowfullscreen', 'true');
+    webview.setAttribute('useragent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36');
+    webview.style.width = '100%';
+    webview.style.height = '100%';
+    webview.style.border = 'none';
+    webview.style.display = idx === activeWorkspaceIndex ? 'flex' : 'none';
+    webview.style.flex = '1';
+
+    if (ws.type === 'youtube') {
+      webview.setAttribute('partition', 'persist:studylock_yt');
+      webview.setAttribute('allowpopups', 'false');
+      webview.src = ws.url;
+
+      if (ws.videoId) {
+        webview.addEventListener('will-navigate', (e) => {
+          const targetId = extractYouTubeId(e.url || '');
+          if (targetId !== ws.videoId) e.preventDefault();
+        });
       }
-      #page-manager { margin-top: 0 !important; }
-      ytd-watch-flexy[flexy] #primary.ytd-watch-flexy { max-width: 100vw !important; margin: 0 auto !important; }
-    `).catch(() => {});
+      webview.addEventListener('new-window', (e) => e.preventDefault());
+
+      webview.addEventListener('dom-ready', () => {
+        webview.insertCSS(`
+          #secondary, #related, ytd-watch-next-secondary-results-renderer, #comments, #masthead-container #center, #masthead-container #buttons, #masthead-container #voice-search-button, #guide-button, #guide-wrapper, ytd-mini-guide-renderer, .ytp-ce-element, .ytp-endscreen-content, #below {
+            display: none !important;
+          }
+          #page-manager { margin-top: 0 !important; }
+          ytd-watch-flexy[flexy] #primary.ytd-watch-flexy { max-width: 100vw !important; margin: 0 auto !important; }
+        `).catch(() => {});
+      });
+    } else {
+      // Standard whitelisted website (PhysicsWallah, ChatGPT, etc.)
+      webview.setAttribute('partition', 'persist:studylock_workspaces');
+      webview.setAttribute('allowpopups', 'true'); // Allows Google / Auth popups
+      webview.src = ws.url;
+
+      try {
+        const parsed = new URL(ws.url);
+        const baseHost = parsed.hostname.toLowerCase();
+
+        webview.addEventListener('will-navigate', (e) => {
+          try {
+            const navUrl = new URL(e.url);
+            const navHost = navUrl.hostname.toLowerCase();
+            const isAllowed = navHost === baseHost || 
+                              navHost.endsWith('.' + baseHost) || 
+                              navHost.includes('google.com') || 
+                              navHost.includes('openai.com') ||
+                              navHost.includes('physicswallah.live') ||
+                              navHost.includes('pw.live') ||
+                              navHost.includes('auth0.com');
+            if (!isAllowed) {
+              e.preventDefault();
+              console.warn('Navigation blocked by StudyLock Whitelist Firewall:', e.url);
+            }
+          } catch (err) {
+            e.preventDefault();
+          }
+        });
+      } catch (e) {}
+    }
+
+    ws.webviewEl = webview;
+    webviewWrapper.appendChild(webview);
   });
 
-  wrapper.appendChild(webview);
+  // Top "+ Add Resource" button in tab strip
+  const addTabBtn = document.createElement('button');
+  addTabBtn.className = 'workspace-tab-add';
+  addTabBtn.id = 'btnTopAddResource';
+  addTabBtn.title = 'Add another whitelisted website in this session';
+  addTabBtn.innerHTML = '+ Add Resource';
+  addTabBtn.addEventListener('click', openAddResourceModal);
+  tabsStrip.appendChild(addTabBtn);
+}
+
+function switchWorkspace(targetIndex) {
+  if (targetIndex < 0 || targetIndex >= activeWorkspaces.length) return;
+  activeWorkspaceIndex = targetIndex;
+
+  // Update tabs
+  document.querySelectorAll('.workspace-tab').forEach((tab, idx) => {
+    if (idx === targetIndex) {
+      tab.classList.add('active');
+    } else {
+      tab.classList.remove('active');
+    }
+  });
+
+  // Toggle webview visibility (state/playback persists without reloading)
+  activeWorkspaces.forEach((ws, idx) => {
+    if (ws.webviewEl) {
+      if (idx === targetIndex) {
+        ws.webviewEl.style.display = 'flex';
+        ws.webviewEl.focus();
+      } else {
+        ws.webviewEl.style.display = 'none';
+      }
+    }
+  });
+
+  const cur = activeWorkspaces[targetIndex];
+  if (cur && cur.title) {
+    document.getElementById('playerHudTopic').textContent = cur.title;
+  }
+}
+
+function openAddResourceModal() {
+  const modal = document.getElementById('addResourceModal');
+  if (modal) {
+    document.getElementById('newResourceTitleInput').value = '';
+    document.getElementById('newResourceUrlInput').value = '';
+    modal.classList.remove('hidden');
+    document.getElementById('newResourceTitleInput').focus();
+  }
+}
+
+function closeAddResourceModal() {
+  const modal = document.getElementById('addResourceModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function handleConfirmAddResource() {
+  const title = document.getElementById('newResourceTitleInput').value.trim() || 'Study Resource';
+  let url = document.getElementById('newResourceUrlInput').value.trim();
+
+  if (!url) {
+    alert('Please enter a valid website URL.');
+    document.getElementById('newResourceUrlInput').focus();
+    return;
+  }
+
+  if (!/^https?:\/\//i.test(url)) {
+    url = 'https://' + url;
+  }
+
+  const ytData = convertToYouTubeData(url);
+  const newWs = {
+    id: 'ws_added_' + Date.now(),
+    title,
+    url: ytData ? `https://www.youtube.com/watch?v=${ytData.videoId}&autoplay=1` : url,
+    videoId: ytData ? ytData.videoId : null,
+    type: ytData ? 'youtube' : 'web'
+  };
+
+  activeWorkspaces.push(newWs);
+  closeAddResourceModal();
+  initMultiWorkspaceEnvironment(activeWorkspaces);
+  switchWorkspace(activeWorkspaces.length - 1);
+}
+
+function exitWebviewFullscreenIfActive() {
+  const cur = activeWorkspaces[activeWorkspaceIndex];
+  if (cur && cur.webviewEl) {
+    cur.webviewEl.executeJavaScript('if (document.fullscreenElement) document.exitFullscreen();').catch(() => {});
+  }
 }
 
 function pauseCurrentPlayer() {
-  const webview = document.getElementById('ytWebviewPlayer');
-  if (webview) {
-    webview.executeJavaScript('const v = document.querySelector("video"); if (v) v.pause();').catch(() => {});
+  const cur = activeWorkspaces[activeWorkspaceIndex];
+  if (cur && cur.webviewEl) {
+    cur.webviewEl.executeJavaScript('const v = document.querySelector("video"); if (v) v.pause();').catch(() => {});
   }
 }
 
 function resumeCurrentPlayer() {
-  const webview = document.getElementById('ytWebviewPlayer');
-  if (webview) {
-    webview.executeJavaScript('const v = document.querySelector("video"); if (v) v.play();').catch(() => {});
+  const cur = activeWorkspaces[activeWorkspaceIndex];
+  if (cur && cur.webviewEl) {
+    cur.webviewEl.executeJavaScript('const v = document.querySelector("video"); if (v) v.play();').catch(() => {});
   }
 }
 
@@ -781,11 +1046,15 @@ async function finishAndSaveSession(exitReason = 'target_completed') {
 
   activeSession = null;
   currentSessionRecord = null;
+  activeWorkspaces = [];
+  activeWorkspaceIndex = 0;
   sessionUnlockKey = '';
   currentVideoId = '';
   isClockPaused = false;
   clockPauseStartTimestamp = 0;
   clockTotalPausedMs = 0;
+  const tabsStrip = document.getElementById('workspaceTabsBar');
+  if (tabsStrip) tabsStrip.innerHTML = '';
   generateNewRandomCode();
 
   // 3. Reload from disk to guarantee 100% data sync
@@ -805,13 +1074,32 @@ function setupParentProofOverlay() {
   const btnToggleClock = document.getElementById('btnClockProofToggle');
 
   if (btnTogglePlayer) {
-    btnTogglePlayer.addEventListener('click', toggleParentProof);
+    btnTogglePlayer.addEventListener('click', () => {
+      exitWebviewFullscreenIfActive();
+      toggleParentProof();
+    });
   }
   if (btnToggleClock) {
-    btnToggleClock.addEventListener('click', toggleParentProof);
+    btnToggleClock.addEventListener('click', () => {
+      toggleParentProof();
+    });
   }
   if (btnClose) {
     btnClose.addEventListener('click', closeParentProof);
+  }
+
+  // Intercept Global IPC signals from Electron Main Process
+  if (window.api && window.api.onToggleParentProof) {
+    window.api.onToggleParentProof(() => {
+      exitWebviewFullscreenIfActive();
+      toggleParentProof();
+    });
+  }
+
+  if (window.api && window.api.onSwitchWorkspace) {
+    window.api.onSwitchWorkspace((index) => {
+      switchWorkspace(index);
+    });
   }
 
   if (modal) {
@@ -822,7 +1110,7 @@ function setupParentProofOverlay() {
     });
   }
 
-  // Global Backtick (` / ~) key listener for quick toggle during active session
+  // Global Backtick (` / ~) & Ctrl+1..5 key listeners
   window.addEventListener('keydown', (e) => {
     const isBacktick = (e.key === '`' || e.key === '~' || e.code === 'Backquote');
     if (isBacktick && activeSession) {
@@ -830,8 +1118,19 @@ function setupParentProofOverlay() {
       if (tag === 'input' || tag === 'textarea') return;
 
       e.preventDefault();
+      exitWebviewFullscreenIfActive();
       toggleParentProof();
-    } else if (e.key === 'Escape' && isParentProofOpen) {
+      return;
+    }
+
+    if ((e.ctrlKey || e.metaKey) && ['1', '2', '3', '4', '5'].includes(e.key) && activeSession && activeWorkspaces.length > 0) {
+      e.preventDefault();
+      const idx = parseInt(e.key, 10) - 1;
+      switchWorkspace(idx);
+      return;
+    }
+
+    if (e.key === 'Escape' && isParentProofOpen) {
       e.preventDefault();
       closeParentProof();
     }
@@ -868,7 +1167,8 @@ function updateParentProofContent() {
   if (!activeSession) return;
 
   const subject = activeSession.subject || 'General Study';
-  const topic = activeSession.topic || 'Lecture Immersion';
+  const curWs = activeWorkspaces[activeWorkspaceIndex];
+  const activeTabName = curWs ? curWs.title : (activeSession.topic || 'Lecture Immersion');
   const elapsed = activeSession.elapsedSeconds || 1;
   const targetMinutes = activeSession.targetMinutes || 45;
   const targetSec = targetMinutes * 60;
@@ -883,6 +1183,9 @@ function updateParentProofContent() {
   const remEl = document.getElementById('parentProofRemaining');
   const targetEl = document.getElementById('parentProofTarget');
   const barEl = document.getElementById('parentProofProgressBar');
+
+  if (subEl) subEl.textContent = subject.toUpperCase();
+  if (topicEl) topicEl.textContent = `${activeSession.topic || 'Lecture'} (Active Tab: ${activeTabName})`;
   const msgEl = document.getElementById('parentProofDynamicMessage');
 
   if (subEl) subEl.textContent = subject.toUpperCase();

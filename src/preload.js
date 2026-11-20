@@ -19,5 +19,13 @@ contextBridge.exposeInMainWorld('api', {
   // Hardware Panic Chord Listener
   onEmergencyChord: (callback) => {
     ipcRenderer.on('emergency-chord-triggered', () => callback());
+  },
+
+  // Global Session Input Listeners (Bypasses Guest Webviews)
+  onToggleParentProof: (callback) => {
+    ipcRenderer.on('toggle-parent-proof-global', () => callback());
+  },
+  onSwitchWorkspace: (callback) => {
+    ipcRenderer.on('switch-workspace-global', (event, index) => callback(index));
   }
 });

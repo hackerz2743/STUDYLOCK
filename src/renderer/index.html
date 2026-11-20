@@ -56,7 +56,7 @@
 
               <!-- Stream URL Input Pill -->
               <div class="form-group mt-3">
-                <label class="form-label-bold" for="ytUrlInput">YouTube Lecture or Playlist Stream URL</label>
+                <label class="form-label-bold" for="ytUrlInput">Primary YouTube Lecture Stream URL</label>
                 <div class="input-pill-wrapper-bold">
                   <span class="pill-icon-bold">🔗</span>
                   <input type="text" id="ytUrlInput" placeholder="Paste link: https://www.youtube.com/watch?v=... or youtu.be/..." spellcheck="false" autocomplete="off">
@@ -64,6 +64,28 @@
                   <button id="btnPasteUrl" class="btn-pill-bold btn-paste-action">📋 Paste Link</button>
                 </div>
                 <div id="urlFeedback" class="form-hint-bold">Direct Watch engine runs raw YouTube stream with all recommendations, shorts, and comments stripped.</div>
+              </div>
+
+              <!-- Multi-Resource Whitelist Workspaces (PW, ChatGPT, Notes) -->
+              <div class="whitelist-setup-box mt-3">
+                <div class="whitelist-setup-header">
+                  <div class="whitelist-badge-meta">
+                    <span class="whitelist-icon">🌐</span>
+                    <span class="whitelist-title">Allowed Multi-Resource Workspaces</span>
+                  </div>
+                  <div class="whitelist-preset-actions">
+                    <span class="preset-label">Quick Add:</span>
+                    <button type="button" class="btn-preset-chip" id="btnAddPwPreset">+ PhysicsWallah</button>
+                    <button type="button" class="btn-preset-chip" id="btnAddGptPreset">+ ChatGPT Doubts</button>
+                    <button type="button" class="btn-preset-chip" id="btnAddCustomPreset">+ Add Website</button>
+                  </div>
+                </div>
+                <div id="extraResourcesContainer" class="extra-resources-container">
+                  <!-- Dynamic resources list -->
+                </div>
+                <div class="whitelist-footer-note">
+                  🔒 Dumb Machine Protection: Inside lock-in, PC only runs these allowed tabs. All external popups & unwhitelisted sites are blocked.
+                </div>
               </div>
             </div>
 
@@ -202,30 +224,48 @@
         </div>
       </div>
 
-      <!-- Active Fullscreen YouTube View (Permanent top bar prevents trapping) -->
+      <!-- Active Fullscreen Workspace View (Permanent top bar prevents trapping) -->
       <div id="playerActiveView" class="fullscreen-layer hidden">
-        <!-- Dedicated Permanent Top Bar: ALWAYS visible so exit is NEVER lost -->
+        <!-- Dedicated Permanent Cockpit Bar: Matches Mockup Perfectly -->
         <div class="player-permanent-bar">
           <div class="bar-left">
-            <span class="app-micro-badge">⚡ StudyLock</span>
-            <span id="playerHudSubject" class="badge-subject">Physics</span>
-            <span id="playerHudTopic" class="hud-topic-text">Lecture</span>
+            <span class="app-brand-title">STUDYLOCK</span>
+            <span class="status-indicator-dot"></span>
+            <span class="lock-status-label">STRICT LOCK-IN ACTIVE</span>
+            <span id="playerHudSubject" class="badge-subject hidden">Physics</span>
+            <span id="playerHudTopic" class="hud-topic-text hidden">Lecture</span>
           </div>
 
           <div class="bar-center">
-            <span class="hud-status-badge">● DIRECT STREAM ACTIVE</span>
-            <span class="hud-time-pill" id="playerHudCountdown">45:00</span>
-            <span class="hud-elapsed-pill" id="playerHudElapsed">(00:00 elapsed)</span>
+            <div class="workspace-tabs-strip" id="workspaceTabsBar">
+              <!-- Dynamic tabs injected here: e.g. [ 1. PhysicsWallah ] [ 2. YouTube Lecture ] [ 3. ChatGPT Doubts ] [ + Add Resource ] -->
+            </div>
           </div>
 
           <div class="bar-right">
-            <button id="btnParentProofToggle" class="btn-hud-proof" title="Show 85% Padhai Proof Screen to Parents (Shortcut: ` or ~)">👨‍👩‍👦 Padhai Proof (`)</button>
-            <button id="btnPlayerEmergency" class="btn-hud-danger-fixed">🛡️ Emergency Exit</button>
+            <!-- Clickable On-Screen Backtick Keycap Button -->
+            <div class="keycap-proof-container">
+              <button id="btnParentProofToggle" class="btn-keycap-proof" title="Click or press ` to show Padhai Proof report">
+                <span class="keycap-char">`</span>
+                <span class="keycap-label">Padhai Proof</span>
+              </button>
+              <span class="keycap-subhint">(Click or press `)</span>
+            </div>
+
+            <!-- Glowing Digital Countdown Timer -->
+            <div class="hud-timer-badge">
+              <span class="hud-digital-timer" id="playerHudCountdown">42:15</span>
+            </div>
+
+            <!-- Emergency Exit Button -->
+            <button id="btnPlayerEmergency" class="btn-hud-emergency-notebook">
+              <span class="lock-icon">🔒</span> Unlock with Notebook Code
+            </button>
           </div>
         </div>
 
         <div class="video-container" id="videoFrameWrapper">
-          <!-- Dynamic Direct Watch Webview Embed -->
+          <!-- Dynamic Direct Watch & Workspace Webviews Injected Here -->
         </div>
       </div>
     </section>
@@ -340,8 +380,16 @@
           <div class="bar-right">
             <!-- Strict Mode Controls -->
             <div id="clockStrictControls" class="clock-controls-cluster">
-              <button id="btnClockProofToggle" class="btn-hud-proof" title="Show 85% Padhai Proof Screen to Parents (Shortcut: ` or ~)">👨‍👩‍👦 Padhai Proof (`)</button>
-              <button id="btnClockEmergency" class="btn-hud-danger-fixed">🛡️ Emergency Exit</button>
+              <div class="keycap-proof-container">
+                <button id="btnClockProofToggle" class="btn-keycap-proof" title="Click or press ` to show Padhai Proof report">
+                  <span class="keycap-char">`</span>
+                  <span class="keycap-label">Padhai Proof</span>
+                </button>
+                <span class="keycap-subhint">(Click or press `)</span>
+              </div>
+              <button id="btnClockEmergency" class="btn-hud-emergency-notebook">
+                <span class="lock-icon">🔒</span> Unlock with Notebook Code
+              </button>
             </div>
 
             <!-- Normal Free Mode Controls -->
@@ -524,6 +572,30 @@
       <div class="dialog-actions-row mt-6">
         <button id="btnCancelEmergencyKey" class="btn-dialog-cancel">Return to Study</button>
         <button id="btnConfirmEmergencyKey" class="btn-dialog-danger" disabled>Unlock Session</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== ADD RESOURCE IN-SESSION MODAL ==================== -->
+  <div id="addResourceModal" class="modal-overlay hidden">
+    <div class="macos-dialog-card">
+      <div class="dialog-icon">🌐</div>
+      <h2>Add Whitelisted Study Resource</h2>
+      <p class="dialog-desc">Enter another website link (e.g. PhysicsWallah batch portal, ChatGPT for doubts, or NCERT online). It will open in a separate workspace tab.</p>
+
+      <div class="form-group mt-4 text-left">
+        <label class="form-label-bold" for="newResourceTitleInput">Resource Title / Tab Name</label>
+        <input type="text" id="newResourceTitleInput" class="bold-input-standard" placeholder="e.g. PhysicsWallah / ChatGPT / NCERT Notes" maxlength="30">
+      </div>
+
+      <div class="form-group mt-3 text-left">
+        <label class="form-label-bold" for="newResourceUrlInput">Resource URL</label>
+        <input type="text" id="newResourceUrlInput" class="bold-input-standard" placeholder="https://..." spellcheck="false" autocomplete="off">
+      </div>
+
+      <div class="dialog-actions-row mt-6">
+        <button id="btnCancelAddResource" class="btn-dialog-cancel">Cancel</button>
+        <button id="btnConfirmAddResource" class="btn-dialog-primary">Add Workspace Tab</button>
       </div>
     </div>
   </div>

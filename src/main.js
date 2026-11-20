@@ -153,7 +153,7 @@ function enableLockIn() {
   mainWindow.setSkipTaskbar(true);
   mainWindow.focus();
 
-  // Block task-switching shortcuts
+  // Block task-switching shortcuts & register session keys
   const blockedKeys = ['Alt+Tab', 'Alt+F4', 'Alt+Escape', 'CommandOrControl+Escape'];
   blockedKeys.forEach((shortcut) => {
     try {
@@ -164,13 +164,22 @@ function enableLockIn() {
       });
     } catch (e) {}
   });
+
+  // Global Backtick interceptor at OS level when locked in
+  try {
+    globalShortcut.register('`', () => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('toggle-parent-proof-global');
+      }
+    });
+  } catch (e) {}
 }
 
 function disableLockIn() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   isLockedIn = false;
 
-  const blockedKeys = ['Alt+Tab', 'Alt+F4', 'Alt+Escape', 'CommandOrControl+Escape'];
+  const blockedKeys = ['Alt+Tab', 'Alt+F4', 'Alt+Escape', 'CommandOrControl+Escape', '`'];
   blockedKeys.forEach((shortcut) => {
     try {
       globalShortcut.unregister(shortcut);
@@ -309,6 +318,27 @@ if (!gotTheLock) {
     );
 
     createWindow();
+
+    // Intercept keyboard inputs across all webcontents (including guest <webview> instances)
+    app.on('web-contents-created', (event, contents) => {
+      contents.on('before-input-event', (inputEvent, input) => {
+        // Intercept Backtick (` / ~) regardless of which webview is active
+        if (input.type === 'keyDown' && (input.key === '`' || input.key === '~' || input.code === 'Backquote')) {
+          if (isLockedIn && mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('toggle-parent-proof-global');
+          }
+        }
+        // Intercept Ctrl+1..5 for fast workspace tab switching
+        if (input.type === 'keyDown' && input.control && !input.alt && !input.shift) {
+          if (['1', '2', '3', '4', '5'].includes(input.key)) {
+            const targetIndex = parseInt(input.key, 10) - 1;
+            if (isLockedIn && mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('switch-workspace-global', targetIndex);
+            }
+          }
+        }
+      });
+    });
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
