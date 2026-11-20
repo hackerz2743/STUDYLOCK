@@ -105,6 +105,34 @@
                 <input type="password" id="playerCustomPassword" class="bold-input-standard hidden" placeholder="Enter emergency unlock password..." spellcheck="false" autocomplete="off">
               </div>
 
+              <!-- Multi-Site Workspaces Setup (Below Session Startup) -->
+              <div class="form-group mt-4 workspace-setup-section">
+                <div class="workspace-section-header">
+                  <span class="workspace-section-title">🌐 MULTI-SITE WORKSPACES</span>
+                  <span class="workspace-section-badge">Whitelist Only</span>
+                </div>
+                <p class="workspace-section-desc">Add extra websites you need (e.g. PW portal, ChatGPT for doubts). In locked mode, PC will strictly only allow these sites.</p>
+
+                <!-- Quick Presets -->
+                <div class="workspace-quick-row mt-2">
+                  <span class="quick-title">Quick Add:</span>
+                  <button type="button" class="btn-preset-chip" id="btnAddPwPreset">+ PhysicsWallah</button>
+                  <button type="button" class="btn-preset-chip" id="btnAddGptPreset">+ ChatGPT Doubts</button>
+                </div>
+
+                <!-- Custom Link Input Row -->
+                <div class="workspace-input-row mt-3">
+                  <input type="text" id="customWsTitle" class="bold-input-compact" placeholder="Title (e.g. PW)" maxlength="20">
+                  <input type="text" id="customWsUrl" class="bold-input-compact flex-1" placeholder="https://..." spellcheck="false" autocomplete="off">
+                  <button type="button" id="btnSaveCustomWs" class="btn-add-ws-action">+ Save Link</button>
+                </div>
+
+                <!-- Visual Saved Workspaces List -->
+                <div id="savedWorkspacesContainer" class="saved-workspaces-container mt-3">
+                  <!-- Saved Workspace Cards injected here with visual confirmation -->
+                </div>
+              </div>
+
               <!-- Main Command Launch Button -->
               <button id="btnLaunchPlayer" class="btn-launch-cockpit mt-5">
                 <span class="launch-icon">🚀</span>
@@ -228,6 +256,16 @@
 
         <div class="video-container" id="videoFrameWrapper">
           <!-- Dynamic Direct Watch & Workspace Webviews Injected Here -->
+
+          <!-- Workspace Deck Navigational Arrows (From Screenshot) -->
+          <button id="btnPrevWorkspace" class="deck-nav-arrow deck-nav-prev hidden" title="Previous Workspace (Ctrl+Left)">❮</button>
+          <button id="btnNextWorkspace" class="deck-nav-arrow deck-nav-next hidden" title="Next Workspace (Ctrl+Right)">❯</button>
+
+          <!-- Floating Deck Indicator Badge -->
+          <div id="workspaceDeckIndicator" class="workspace-deck-indicator hidden">
+            <span class="deck-indicator-dot">●</span>
+            <span id="deckIndicatorText">Workspace 1 of 1 · State Persisted</span>
+          </div>
         </div>
       </div>
     </section>

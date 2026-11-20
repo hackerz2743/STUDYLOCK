@@ -303,26 +303,151 @@ function extractYouTubeId(url) {
 }
 
 // ========================================================
-// Multi-Resource Whitelist & Workspace Engine
+// Persistent Multi-Site Workspaces Storage & Engine
 // ========================================================
+let savedWorkspacesList = [];
+
+function loadSavedWorkspaces() {
+  try {
+    const raw = localStorage.getItem('studylock_saved_workspaces');
+    if (raw) {
+      savedWorkspacesList = JSON.parse(raw);
+    } else {
+      savedWorkspacesList = [
+        { id: 'pw_default', title: 'PhysicsWallah', url: 'https://study.physicswallah.live/' },
+        { id: 'gpt_default', title: 'ChatGPT Doubts', url: 'https://chatgpt.com/' }
+      ];
+      persistSavedWorkspaces();
+    }
+  } catch (e) {
+    savedWorkspacesList = [];
+  }
+}
+
+function persistSavedWorkspaces() {
+  try {
+    localStorage.setItem('studylock_saved_workspaces', JSON.stringify(savedWorkspacesList));
+  } catch (e) {}
+}
+
+function addSavedWorkspace(title, url) {
+  if (!url) return;
+  url = url.trim();
+  if (!/^https?:\/\//i.test(url)) {
+    url = 'https://' + url;
+  }
+  const existing = savedWorkspacesList.find(w => w.url.toLowerCase() === url.toLowerCase());
+  if (existing) {
+    existing.title = title || existing.title;
+  } else {
+    savedWorkspacesList.push({
+      id: 'ws_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+      title: title || 'Study Website',
+      url
+    });
+  }
+  persistSavedWorkspaces();
+  renderSavedWorkspacesList();
+}
+
+function removeSavedWorkspace(id) {
+  savedWorkspacesList = savedWorkspacesList.filter(w => w.id !== id);
+  persistSavedWorkspaces();
+  renderSavedWorkspacesList();
+}
+
+function renderSavedWorkspacesList() {
+  const container = document.getElementById('savedWorkspacesContainer');
+  if (!container) return;
+
+  if (savedWorkspacesList.length === 0) {
+    container.innerHTML = '<div style="font-size: 11px; color: #64748b; font-style: italic; padding: 4px 0;">No extra websites added. PC will strictly only run the YouTube lecture.</div>';
+    return;
+  }
+
+  container.innerHTML = '';
+  savedWorkspacesList.forEach((ws) => {
+    let domain = '';
+    try {
+      domain = new URL(ws.url).hostname;
+    } catch (e) {
+      domain = ws.url;
+    }
+
+    const card = document.createElement('div');
+    card.className = 'saved-workspace-card';
+    card.innerHTML = `
+      <div class="saved-card-left">
+        <span class="saved-card-tag">✓ SAVED</span>
+        <span class="saved-card-title">${escapeHtml(ws.title)}</span>
+        <span class="saved-card-url" title="${escapeHtml(ws.url)}">${escapeHtml(domain)}</span>
+      </div>
+      <button type="button" class="btn-delete-saved-ws" title="Remove website" data-id="${ws.id}">✕</button>
+    `;
+
+    card.querySelector('.btn-delete-saved-ws').addEventListener('click', () => {
+      removeSavedWorkspace(ws.id);
+    });
+
+    container.appendChild(card);
+  });
+}
+
 function setupResourceWhitelistUI() {
+  loadSavedWorkspaces();
+  renderSavedWorkspacesList();
+
   const btnAddPw = document.getElementById('btnAddPwPreset');
   const btnAddGpt = document.getElementById('btnAddGptPreset');
-  const btnAddCustom = document.getElementById('btnAddCustomPreset');
+  const btnSaveCustom = document.getElementById('btnSaveCustomWs');
 
   if (btnAddPw) {
     btnAddPw.addEventListener('click', () => {
-      addExtraResource('PhysicsWallah', 'https://study.physicswallah.live/');
+      addSavedWorkspace('PhysicsWallah', 'https://study.physicswallah.live/');
     });
   }
   if (btnAddGpt) {
     btnAddGpt.addEventListener('click', () => {
-      addExtraResource('ChatGPT Doubts', 'https://chatgpt.com/');
+      addSavedWorkspace('ChatGPT Doubts', 'https://chatgpt.com/');
     });
   }
-  if (btnAddCustom) {
-    btnAddCustom.addEventListener('click', () => {
-      addExtraResource('Study Resource', '');
+  if (btnSaveCustom) {
+    btnSaveCustom.addEventListener('click', () => {
+      const titleInput = document.getElementById('customWsTitle');
+      const urlInput = document.getElementById('customWsUrl');
+      const title = (titleInput ? titleInput.value.trim() : '') || 'Study Resource';
+      let url = urlInput ? urlInput.value.trim() : '';
+
+      if (!url) {
+        alert('Please enter a website URL.');
+        if (urlInput) urlInput.focus();
+        return;
+      }
+
+      addSavedWorkspace(title, url);
+      if (titleInput) titleInput.value = '';
+      if (urlInput) urlInput.value = '';
+    });
+  }
+
+  // Floating Deck Navigation Arrows (Matching User Screenshot)
+  const btnPrev = document.getElementById('btnPrevWorkspace');
+  const btnNext = document.getElementById('btnNextWorkspace');
+
+  if (btnPrev) {
+    btnPrev.addEventListener('click', () => {
+      if (activeWorkspaces.length > 1) {
+        const prevIdx = activeWorkspaceIndex > 0 ? activeWorkspaceIndex - 1 : activeWorkspaces.length - 1;
+        switchWorkspace(prevIdx);
+      }
+    });
+  }
+  if (btnNext) {
+    btnNext.addEventListener('click', () => {
+      if (activeWorkspaces.length > 1) {
+        const nextIdx = activeWorkspaceIndex < activeWorkspaces.length - 1 ? activeWorkspaceIndex + 1 : 0;
+        switchWorkspace(nextIdx);
+      }
     });
   }
 
@@ -335,54 +460,6 @@ function setupResourceWhitelistUI() {
   if (btnConfirmAdd) {
     btnConfirmAdd.addEventListener('click', handleConfirmAddResource);
   }
-}
-
-function addExtraResource(title, url) {
-  const id = 'res_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
-  extraResourcesList.push({ id, title, url });
-  renderExtraResourcesList();
-}
-
-function removeExtraResource(id) {
-  extraResourcesList = extraResourcesList.filter(r => r.id !== id);
-  renderExtraResourcesList();
-}
-
-function renderExtraResourcesList() {
-  const container = document.getElementById('extraResourcesContainer');
-  if (!container) return;
-
-  if (extraResourcesList.length === 0) {
-    container.innerHTML = '<div style="font-size: 11px; color: #64748b; font-style: italic; padding: 4px 0;">No extra websites added. You can add PhysicsWallah or ChatGPT above to use them in locked mode.</div>';
-    return;
-  }
-
-  container.innerHTML = '';
-  extraResourcesList.forEach((res) => {
-    const row = document.createElement('div');
-    row.className = 'resource-row-item';
-    row.innerHTML = `
-      <input type="text" class="resource-title-input" value="${escapeHtml(res.title)}" placeholder="Title (e.g. PW)" data-id="${res.id}">
-      <input type="text" class="resource-url-input" value="${escapeHtml(res.url)}" placeholder="https://..." data-id="${res.id}">
-      <button type="button" class="btn-remove-resource" title="Remove Resource" data-id="${res.id}">✕</button>
-    `;
-
-    const titleInput = row.querySelector('.resource-title-input');
-    const urlInput = row.querySelector('.resource-url-input');
-    const btnRemove = row.querySelector('.btn-remove-resource');
-
-    titleInput.addEventListener('input', (e) => {
-      res.title = e.target.value;
-    });
-    urlInput.addEventListener('input', (e) => {
-      res.url = e.target.value;
-    });
-    btnRemove.addEventListener('click', () => {
-      removeExtraResource(res.id);
-    });
-
-    container.appendChild(row);
-  });
 }
 
 function escapeHtml(str) {
@@ -426,7 +503,7 @@ function handlePlayerLaunch() {
   // Close preview in stage if open to stop duplicate audio
   closeStagePreview();
 
-  // Construct Multi-Resource Workspaces
+  // Construct Multi-Resource Workspaces (YouTube primary + all saved verified websites)
   const workspaces = [
     {
       id: 'ws_yt_primary',
@@ -437,7 +514,7 @@ function handlePlayerLaunch() {
     }
   ];
 
-  extraResourcesList.forEach((res, idx) => {
+  savedWorkspacesList.forEach((res, idx) => {
     let rawUrl = (res.url || '').trim();
     if (!rawUrl) return;
     if (!/^https?:\/\//i.test(rawUrl)) {
@@ -445,8 +522,8 @@ function handlePlayerLaunch() {
     }
     const ytMatch = convertToYouTubeData(rawUrl);
     workspaces.push({
-      id: 'ws_extra_' + idx,
-      title: res.title.trim() || `Resource ${workspaces.length + 1}`,
+      id: 'ws_saved_' + idx,
+      title: res.title.trim() || `Workspace ${workspaces.length + 1}`,
       url: ytMatch ? `https://www.youtube.com/watch?v=${ytMatch.videoId}&autoplay=1` : rawUrl,
       videoId: ytMatch ? ytMatch.videoId : null,
       type: ytMatch ? 'youtube' : 'web'
@@ -581,6 +658,39 @@ function initMultiWorkspaceEnvironment(workspaces) {
     webviewWrapper.appendChild(webview);
   });
 
+  // Re-inject deck navigation arrows and indicator
+  const btnPrev = document.createElement('button');
+  btnPrev.id = 'btnPrevWorkspace';
+  btnPrev.className = `deck-nav-arrow deck-nav-prev ${workspaces.length > 1 ? '' : 'hidden'}`;
+  btnPrev.title = 'Previous Workspace (Ctrl+Left)';
+  btnPrev.textContent = '❮';
+  btnPrev.onclick = () => {
+    if (activeWorkspaces.length > 1) {
+      const prevIdx = activeWorkspaceIndex > 0 ? activeWorkspaceIndex - 1 : activeWorkspaces.length - 1;
+      switchWorkspace(prevIdx);
+    }
+  };
+  webviewWrapper.appendChild(btnPrev);
+
+  const btnNext = document.createElement('button');
+  btnNext.id = 'btnNextWorkspace';
+  btnNext.className = `deck-nav-arrow deck-nav-next ${workspaces.length > 1 ? '' : 'hidden'}`;
+  btnNext.title = 'Next Workspace (Ctrl+Right)';
+  btnNext.textContent = '❯';
+  btnNext.onclick = () => {
+    if (activeWorkspaces.length > 1) {
+      const nextIdx = activeWorkspaceIndex < activeWorkspaces.length - 1 ? activeWorkspaceIndex + 1 : 0;
+      switchWorkspace(nextIdx);
+    }
+  };
+  webviewWrapper.appendChild(btnNext);
+
+  const deckIndicator = document.createElement('div');
+  deckIndicator.id = 'workspaceDeckIndicator';
+  deckIndicator.className = `workspace-deck-indicator ${workspaces.length > 1 ? '' : 'hidden'}`;
+  deckIndicator.innerHTML = `<span class="deck-indicator-dot">●</span> <span id="deckIndicatorText">Workspace 1 of ${workspaces.length}: ${workspaces[0].title} · State Persisted</span>`;
+  webviewWrapper.appendChild(deckIndicator);
+
   // Top "+ Add Resource" button in tab strip
   const addTabBtn = document.createElement('button');
   addTabBtn.className = 'workspace-tab-add';
@@ -619,6 +729,10 @@ function switchWorkspace(targetIndex) {
   const cur = activeWorkspaces[targetIndex];
   if (cur && cur.title) {
     document.getElementById('playerHudTopic').textContent = cur.title;
+  }
+  const deckText = document.getElementById('deckIndicatorText');
+  if (deckText && cur) {
+    deckText.textContent = `Workspace ${targetIndex + 1} of ${activeWorkspaces.length}: ${cur.title} · State Persisted`;
   }
 }
 

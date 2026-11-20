@@ -2084,3 +2084,235 @@ body {
   font-weight: 600;
   color: var(--text-dim);
 }
+
+/* ========================================================
+   MULTI-SITE WORKSPACES & DECK NAVIGATION (User Screenshot)
+   ======================================================== */
+.workspace-setup-section {
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+
+.workspace-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.workspace-section-title {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: #38bdf8;
+  text-transform: uppercase;
+}
+
+.workspace-section-badge {
+  font-size: 9.5px;
+  font-weight: 800;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #10b981;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.workspace-section-desc {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 5px;
+  line-height: 1.4;
+}
+
+.workspace-quick-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.quick-title {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.workspace-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.bold-input-compact {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+.bold-input-compact:focus {
+  outline: none;
+  border-color: #38bdf8;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.btn-add-ws-action {
+  background: #10b981;
+  border: none;
+  color: #000000;
+  font-size: 11.5px;
+  font-weight: 800;
+  padding: 7px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-add-ws-action:hover {
+  background: #34d399;
+  transform: translateY(-1px);
+}
+
+.saved-workspaces-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.saved-workspace-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(11, 15, 25, 0.88);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 11.5px;
+  transition: all 0.15s ease;
+}
+
+.saved-workspace-card:hover {
+  border-color: #10b981;
+  background: rgba(15, 23, 42, 0.95);
+}
+
+.saved-card-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.saved-card-title {
+  font-weight: 800;
+  color: #f8fafc;
+  white-space: nowrap;
+}
+
+.saved-card-url {
+  color: #38bdf8;
+  font-family: monospace;
+  font-size: 10.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 140px;
+}
+
+.saved-card-tag {
+  background: rgba(16, 185, 129, 0.18);
+  color: #10b981;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.btn-delete-saved-ws {
+  background: transparent;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.btn-delete-saved-ws:hover {
+  background: rgba(239, 68, 68, 0.15);
+}
+
+/* Floating Deck Navigation Arrows (Matching Screenshot) */
+.deck-nav-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 60px;
+  background: rgba(11, 15, 25, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 900;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 999990;
+  backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+  opacity: 0.35;
+  user-select: none;
+}
+
+.deck-nav-arrow:hover {
+  opacity: 1;
+  background: rgba(6, 182, 212, 0.9);
+  color: #000000;
+  border-color: #06b6d4;
+  box-shadow: 0 0 20px rgba(6, 182, 212, 0.6);
+  transform: translateY(-50%) scale(1.08);
+}
+
+.deck-nav-prev {
+  left: 18px;
+}
+
+.deck-nav-next {
+  right: 18px;
+}
+
+/* Floating Deck Indicator Toast */
+.workspace-deck-indicator {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(11, 15, 25, 0.88);
+  border: 1px solid rgba(6, 182, 212, 0.4);
+  color: #e2e8f0;
+  padding: 6px 18px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  z-index: 999990;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: opacity 0.3s ease;
+}
+
+.deck-indicator-dot {
+  color: #10b981;
+  font-size: 10px;
+}
