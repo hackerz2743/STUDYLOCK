@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('api', {
   deleteSession: (id) => ipcRenderer.invoke('delete-session', id),
   deleteSessionsOlderThan: (days) => ipcRenderer.invoke('delete-sessions-older-than', days),
   clearAllSessions: () => ipcRenderer.invoke('clear-all-sessions'),
+  getStudyTasks: () => ipcRenderer.invoke('get-study-tasks'),
+  saveStudyTasks: (tasks) => ipcRenderer.invoke('save-study-tasks', tasks),
   setActiveSession: (info) => ipcRenderer.invoke('set-active-session', info),
   clearActiveSession: () => ipcRenderer.invoke('clear-active-session'),
   setLockIn: (enabled) => ipcRenderer.invoke('set-lock-in', enabled),

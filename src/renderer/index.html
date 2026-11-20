@@ -23,9 +23,19 @@
       <button class="nav-segment-btn" data-tab="tabClock">
         <span class="segment-label">Focus Clock</span>
       </button>
+      <button class="nav-segment-btn" data-tab="tabTasks">
+        <span class="segment-label">🎯 Today's Plan</span>
+      </button>
     </nav>
 
     <div class="titlebar-right">
+      <div id="titlebarMidnightBadge" class="titlebar-midnight-badge" title="Countdown to 12:00 AM Midnight Study Cutoff">
+        <span class="badge-icon">⏳</span>
+        <span id="titlebarMidnightCountdown" class="badge-countdown">--:--:--</span>
+        <span class="badge-sub">left to 12 AM</span>
+        <span class="badge-sep">•</span>
+        <span id="titlebarCurrentDate" class="badge-date">--</span>
+      </div>
       <span class="emergency-hint-text">Emergency: Ctrl+Alt+Shift+F12</span>
     </div>
   </header>
@@ -372,6 +382,138 @@
       </div>
     </section>
 
+    <!-- ==================== TAB 3: TODAY'S PLAN & MIDNIGHT DEADLINE ==================== -->
+    <section id="tabTasks" class="tab-pane">
+      <div class="tasks-viewport-container">
+        
+        <!-- TOP HERO: 12 AM MIDNIGHT DEADLINE & TODAY'S DATE -->
+        <div class="midnight-hero-card">
+          <div class="midnight-hero-top-row">
+            <div class="midnight-hero-date-badge">
+              <span class="calendar-icon">📅</span>
+              <span id="tasksHeroDate" class="hero-date-text">Loading today's date...</span>
+            </div>
+            <div class="midnight-cutoff-pill">
+              <span class="pulse-amber-dot"></span>
+              <span>DAILY STUDY CUTOFF: 12:00 AM MIDNIGHT</span>
+            </div>
+          </div>
+
+          <!-- Hero Colossal Digits -->
+          <div class="midnight-countdown-wrap">
+            <div class="midnight-digit-block">
+              <span id="midnightHeroHours" class="m-digit">00</span>
+              <span class="m-label">HOURS</span>
+            </div>
+            <span class="m-colon">:</span>
+            <div class="midnight-digit-block">
+              <span id="midnightHeroMinutes" class="m-digit">00</span>
+              <span class="m-label">MINUTES</span>
+            </div>
+            <span class="m-colon">:</span>
+            <div class="midnight-digit-block">
+              <span id="midnightHeroSeconds" class="m-digit">00</span>
+              <span class="m-label">SECONDS</span>
+            </div>
+          </div>
+
+          <div class="midnight-motto-row">
+            <span class="motto-text">Remaining until midnight cutoff. Finish all pending targets before 12:00 AM!</span>
+            <button type="button" id="btnTestFrictionPrompt" class="btn-subtle-pill" title="Test how the distraction friction alert looks and behaves">
+              <span>⚡ Test Reality Check</span>
+            </button>
+          </div>
+
+          <!-- Day Burn Progress Bar -->
+          <div class="day-burn-container mt-4">
+            <div class="day-burn-labels">
+              <span id="dayBurnPercentText">Day Burn: --% elapsed</span>
+              <span id="dayBurnRemainingText">--h --m left today</span>
+            </div>
+            <div class="day-burn-track">
+              <div id="dayBurnFill" class="day-burn-fill" style="width: 0%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MAIN TASKS PLANNER CARD -->
+        <div class="tasks-planner-card mt-4">
+          <div class="tasks-planner-header">
+            <div class="tasks-title-cluster">
+              <h2 class="tasks-main-title">TODAY'S STUDY TARGETS</h2>
+              <span class="tasks-sub-hint">Set your targets, estimate time, and click "Lock In Now" to crush them.</span>
+            </div>
+            
+            <div id="tasksSummaryBadge" class="tasks-summary-badge">
+              <span id="tasksCompletedCount">0</span> of <span id="tasksTotalCount">0</span> Done (<span id="tasksPercentText">0%</span>)
+            </div>
+          </div>
+
+          <!-- Overall Targets Progress Bar -->
+          <div class="tasks-progress-track mt-2">
+            <div id="tasksProgressFill" class="tasks-progress-fill" style="width: 0%;"></div>
+          </div>
+
+          <!-- Quick Add Target Form -->
+          <div class="task-add-panel mt-4">
+            <div class="task-input-primary-row">
+              <input type="text" id="taskTitleInput" class="bold-input-standard" placeholder="Enter target (e.g. Physics HC Verma Ch 7, Maths Integration Ex 3)..." maxlength="100">
+            </div>
+
+            <div class="task-options-row mt-3">
+              <div class="task-option-group">
+                <span class="task-opt-label">SUBJECT:</span>
+                <div class="chip-group-bold" id="taskSubjectChips">
+                  <button type="button" class="chip-bold active" data-subject="Physics">Physics</button>
+                  <button type="button" class="chip-bold" data-subject="Chemistry">Chemistry</button>
+                  <button type="button" class="chip-bold" data-subject="Maths">Maths</button>
+                  <button type="button" class="chip-bold" data-subject="Other">Other</button>
+                </div>
+              </div>
+
+              <div class="task-option-group">
+                <span class="task-opt-label">DURATION:</span>
+                <div class="chip-group-bold" id="taskDurationChips">
+                  <button type="button" class="chip-bold" data-minutes="15">15m</button>
+                  <button type="button" class="chip-bold" data-minutes="30">30m</button>
+                  <button type="button" class="chip-bold active" data-minutes="45">45m</button>
+                  <button type="button" class="chip-bold" data-minutes="60">60m</button>
+                  <button type="button" class="chip-bold" data-minutes="90">90m</button>
+                </div>
+              </div>
+
+              <button type="button" id="btnAddTask" class="btn-action-primary">+ Add Target</button>
+            </div>
+          </div>
+
+          <!-- Filters & Actions Bar -->
+          <div class="tasks-filter-bar mt-4">
+            <div class="filter-pills-row">
+              <button type="button" class="task-filter-btn active" data-filter="all">All (<span id="countAll">0</span>)</button>
+              <button type="button" class="task-filter-btn" data-filter="pending">Pending (<span id="countPending">0</span>)</button>
+              <button type="button" class="task-filter-btn" data-filter="completed">Completed (<span id="countCompleted">0</span>)</button>
+            </div>
+
+            <button type="button" id="btnClearCompletedTasks" class="btn-text-subtle" title="Remove completed targets">Clear Completed</button>
+          </div>
+
+          <!-- Dynamic Tasks List -->
+          <div id="dailyTasksList" class="daily-tasks-list mt-3">
+            <!-- Dynamic task items injected here -->
+          </div>
+
+          <!-- Empty State -->
+          <div id="tasksEmptyState" class="tasks-empty-state hidden">
+            <div class="empty-icon">🎯</div>
+            <h3 class="empty-title">No Study Targets Added Yet</h3>
+            <p class="empty-desc">Break your day into focused targets above. Every target has a 1-click "Lock In" launcher to prevent procrastination!</p>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
   </main>
 
   <!-- ==================== PARENT PROOF OVERLAY (85-90% SCREEN COVERAGE IN HINGLISH) ==================== -->
@@ -443,6 +585,57 @@
         <span class="parent-dismiss-note">(Aap keyboard par <strong>` (Backtick / ~)</strong> dabakar bhi screen hata sakte hain)</span>
       </div>
 
+    </div>
+  </div>
+
+  <!-- ==================== DISTRACTION FRICTION REALITY-CHECK MODAL ==================== -->
+  <div id="distractionFrictionModal" class="modal-overlay hidden">
+    <div class="macos-dialog-card friction-dialog-card">
+      <div class="friction-header-badge">
+        <span class="pulse-amber-dot"></span>
+        <span>REALITY CHECK • IDLE DRIFT DETECTED</span>
+      </div>
+
+      <!-- Non-Repeating Reality Check Question -->
+      <h2 id="frictionQuestionText" class="friction-question-headline">What you are doing right now... is it taking you closer to your goal?</h2>
+
+      <!-- Idle Time & Midnight Countdown Stats -->
+      <div class="friction-stats-strip mt-4">
+        <div class="friction-stat-pill">
+          <span class="f-pill-label">IDLE OUTSIDE LOCK-IN</span>
+          <span id="frictionIdleTimeDisplay" class="f-pill-value">15m 00s</span>
+        </div>
+        <div class="friction-stat-pill highlight">
+          <span class="f-pill-label">LEFT TO 12 AM MIDNIGHT</span>
+          <span id="frictionMidnightTimeDisplay" class="f-pill-value">--:--:--</span>
+        </div>
+      </div>
+
+      <!-- Spotlight Next Pending Target -->
+      <div id="frictionTargetSpotlight" class="friction-target-spotlight mt-4">
+        <div class="spotlight-header">
+          <span class="spotlight-tag">YOUR NEXT TARGET WAITING:</span>
+        </div>
+        <div class="spotlight-content">
+          <span id="frictionSpotlightSubject" class="chip-subject-mini">Physics</span>
+          <span id="frictionSpotlightTitle" class="spotlight-title">No pending target</span>
+          <span id="frictionSpotlightDuration" class="spotlight-duration">⏱️ 45m</span>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="dialog-actions-row mt-5">
+        <button id="btnFrictionSnooze" class="btn-dialog-secondary">
+          <span>⏳ 5 More Mins Break</span>
+        </button>
+        <button id="btnFrictionLockIn" class="btn-dialog-primary">
+          <span>🚀 Yes, I'm Ready — Lock In Now</span>
+        </button>
+      </div>
+
+      <div class="friction-footer-note mt-3">
+        <span>Zero-Repetition Question Engine • 35 Rotating Deep Reflection Prompts</span>
+      </div>
     </div>
   </div>
 

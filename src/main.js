@@ -32,6 +32,7 @@ function ensureDataFile() {
   if (!fs.existsSync(dataFilePath)) {
     const initialData = {
       sessions: [],
+      tasks: [],
       settings: {
         theme: 'obsidian',
         emergencyPassword: 'unlock123'
@@ -49,10 +50,12 @@ function loadData() {
   ensureDataFile();
   try {
     const raw = fs.readFileSync(dataFilePath, 'utf-8');
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (!parsed.tasks) parsed.tasks = [];
+    return parsed;
   } catch (err) {
     console.error('Failed to parse study_data.json, returning default:', err);
-    return { sessions: [], settings: { theme: 'obsidian', emergencyPassword: 'unlock123' } };
+    return { sessions: [], tasks: [], settings: { theme: 'obsidian', emergencyPassword: 'unlock123' } };
   }
 }
 
@@ -229,6 +232,19 @@ ipcMain.handle('delete-sessions-older-than', async (event, days) => {
 ipcMain.handle('clear-all-sessions', async () => {
   const data = loadData();
   data.sessions = [];
+  saveData(data);
+  return { success: true };
+});
+
+// Daily Target Tasks
+ipcMain.handle('get-study-tasks', async () => {
+  const data = loadData();
+  return data.tasks || [];
+});
+
+ipcMain.handle('save-study-tasks', async (event, tasks) => {
+  const data = loadData();
+  data.tasks = tasks;
   saveData(data);
   return { success: true };
 });

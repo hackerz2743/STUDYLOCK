@@ -50,6 +50,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupTimerExpiryModal();
   setupEmergencyChordListener();
   generateNewRandomCode();
+
+  // Midnight Countdown, Daily Targets & Distraction Friction Engine
+  setupMidnightCountdownAndDate();
+  await setupTodayTasksSection();
+  setupDistractionFrictionEngine();
 });
 
 // ========================================================
@@ -96,16 +101,23 @@ function setupWindowControls() {
 // ========================================================
 // Navigation
 // ========================================================
+function switchTab(targetTabId) {
+  document.querySelectorAll('.nav-segment-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === targetTabId);
+  });
+  document.querySelectorAll('.tab-pane').forEach(p => {
+    p.classList.toggle('active', p.id === targetTabId);
+  });
+}
+
 function setupTabNavigation() {
   document.querySelectorAll('.nav-segment-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const targetTabId = btn.dataset.tab;
-      document.querySelectorAll('.nav-segment-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-
-      btn.classList.add('active');
-      const targetPane = document.getElementById(targetTabId);
-      if (targetPane) targetPane.classList.add('active');
+      if (activeSession && activeSession.clockMode === 'locked') {
+        alert('🔒 Session is locked! Complete your session or enter emergency notebook exit code.');
+        return;
+      }
+      switchTab(btn.dataset.tab);
     });
   });
 }
@@ -945,6 +957,11 @@ async function finishAndSaveSession(exitReason = 'target_completed') {
 
   // 4. Show sleek macOS toast confirmation of saved study session
   showToastNotification(`✓ Session complete: ${savedDuration} studied in ${savedSubject} saved to vault!`);
+
+  // 5. Auto-mark matching study target if present in today's targets
+  if (sessionRecord.topic) {
+    autoCompleteMatchingTask(sessionRecord.topic);
+  }
 }
 
 // ========================================================
@@ -1259,4 +1276,579 @@ function escapeHtml(str) {
     '"': '&quot;',
     "'": '&#39;'
   })[m]);
+}
+
+// ========================================================
+// MIDNIGHT DEADLINE COUNTDOWN & DATE ENGINE
+// ========================================================
+let midnightTickerInterval = null;
+
+function getMidnightStats() {
+  const now = new Date();
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0);
+  const diffMs = Math.max(0, midnight.getTime() - now.getTime());
+  const totalSeconds = Math.floor(diffMs / 1000);
+
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  // Day burn: from 00:00 to 24:00 (full 24-hour cycle)
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0).getTime();
+  const fullDayMs = 24 * 60 * 60 * 1000;
+  const elapsedDayMs = now.getTime() - startOfDay;
+  const burnPercent = Math.min(100, Math.max(0, Math.round((elapsedDayMs / fullDayMs) * 100)));
+
+  // Long date: "Friday, 20 November 2026"
+  const optionsLong = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+  const formattedDateLong = now.toLocaleDateString('en-US', optionsLong);
+
+  // Short date: "Fri, 20 Nov"
+  const optionsShort = { weekday: 'short', day: 'numeric', month: 'short' };
+  const formattedDateShort = now.toLocaleDateString('en-US', optionsShort);
+
+  return {
+    hours,
+    minutes,
+    seconds,
+    totalSeconds,
+    burnPercent,
+    formattedDateLong,
+    formattedDateShort,
+    hoursStr: String(hours).padStart(2, '0'),
+    minutesStr: String(minutes).padStart(2, '0'),
+    secondsStr: String(seconds).padStart(2, '0')
+  };
+}
+
+function updateMidnightDisplays() {
+  const stats = getMidnightStats();
+
+  // 1. Titlebar live badge
+  const titlebarCountdown = document.getElementById('titlebarMidnightCountdown');
+  const titlebarDate = document.getElementById('titlebarCurrentDate');
+  if (titlebarCountdown) {
+    titlebarCountdown.textContent = `${stats.hoursStr}:${stats.minutesStr}:${stats.secondsStr}`;
+  }
+  if (titlebarDate) {
+    titlebarDate.textContent = stats.formattedDateShort;
+  }
+
+  // 2. Hero Section in Today's Plan
+  const heroDate = document.getElementById('tasksHeroDate');
+  const heroH = document.getElementById('midnightHeroHours');
+  const heroM = document.getElementById('midnightHeroMinutes');
+  const heroS = document.getElementById('midnightHeroSeconds');
+  const dayBurnFill = document.getElementById('dayBurnFill');
+  const dayBurnPct = document.getElementById('dayBurnPercentText');
+  const dayBurnRem = document.getElementById('dayBurnRemainingText');
+
+  if (heroDate) heroDate.textContent = stats.formattedDateLong;
+  if (heroH) heroH.textContent = stats.hoursStr;
+  if (heroM) heroM.textContent = stats.minutesStr;
+  if (heroS) heroS.textContent = stats.secondsStr;
+  if (dayBurnFill) dayBurnFill.style.width = `${stats.burnPercent}%`;
+  if (dayBurnPct) dayBurnPct.textContent = `Day Burn: ${stats.burnPercent}% elapsed`;
+  if (dayBurnRem) dayBurnRem.textContent = `${stats.hours}h ${stats.minutes}m left today`;
+
+  // 3. Friction Modal (if currently displayed)
+  const frictionMidnight = document.getElementById('frictionMidnightTimeDisplay');
+  if (frictionMidnight) {
+    frictionMidnight.textContent = `${stats.hoursStr}h ${stats.minutesStr}m ${stats.secondsStr}s`;
+  }
+}
+
+function setupMidnightCountdownAndDate() {
+  updateMidnightDisplays();
+  if (midnightTickerInterval) clearInterval(midnightTickerInterval);
+  midnightTickerInterval = setInterval(updateMidnightDisplays, 1000);
+}
+
+
+// ========================================================
+// DAILY TARGETS & TASK PLANNER
+// ========================================================
+let dailyTasks = [];
+let currentTaskFilter = 'all'; // 'all' | 'pending' | 'completed'
+let selectedTaskSubject = 'Physics';
+let selectedTaskMinutes = 45;
+
+async function setupTodayTasksSection() {
+  // Load saved tasks from persistence
+  try {
+    const saved = await window.api.getStudyTasks();
+    dailyTasks = Array.isArray(saved) ? saved : [];
+  } catch (e) {
+    console.error('Failed to load tasks:', e);
+    dailyTasks = [];
+  }
+
+  // Subject Chips Selection
+  document.querySelectorAll('#taskSubjectChips .chip-bold').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('#taskSubjectChips .chip-bold').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      selectedTaskSubject = chip.dataset.subject || 'Physics';
+    });
+  });
+
+  // Duration Chips Selection
+  document.querySelectorAll('#taskDurationChips .chip-bold').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('#taskDurationChips .chip-bold').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      selectedTaskMinutes = parseInt(chip.dataset.minutes, 10) || 45;
+    });
+  });
+
+  // Add Task Button
+  const btnAdd = document.getElementById('btnAddTask');
+  const taskInput = document.getElementById('taskTitleInput');
+
+  if (btnAdd && taskInput) {
+    btnAdd.addEventListener('click', () => handleAddNewTask());
+    taskInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleAddNewTask();
+    });
+  }
+
+  // Filter Buttons
+  document.querySelectorAll('.task-filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.task-filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentTaskFilter = btn.dataset.filter || 'all';
+      renderTasks();
+    });
+  });
+
+  // Clear Completed Tasks Button
+  const btnClear = document.getElementById('btnClearCompletedTasks');
+  if (btnClear) {
+    btnClear.addEventListener('click', async () => {
+      const completedCount = dailyTasks.filter(t => t.completed).length;
+      if (completedCount === 0) {
+        showToastNotification('No completed targets to clear.');
+        return;
+      }
+      dailyTasks = dailyTasks.filter(t => !t.completed);
+      await persistTasks();
+      renderTasks();
+      showToastNotification(`Cleared ${completedCount} completed target(s).`);
+    });
+  }
+
+  // Initial render
+  renderTasks();
+}
+
+async function handleAddNewTask() {
+  const input = document.getElementById('taskTitleInput');
+  const title = input ? input.value.trim() : '';
+
+  if (!title) {
+    input.focus();
+    return;
+  }
+
+  const newTask = {
+    id: 'task_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+    title,
+    subject: selectedTaskSubject,
+    minutes: selectedTaskMinutes,
+    completed: false,
+    createdAt: new Date().toISOString()
+  };
+
+  dailyTasks.unshift(newTask);
+  if (input) input.value = '';
+
+  await persistTasks();
+  renderTasks();
+  showToastNotification(`🎯 Added target: ${title} (${selectedTaskMinutes}m)`);
+}
+
+async function persistTasks() {
+  try {
+    await window.api.saveStudyTasks(dailyTasks);
+  } catch (e) {
+    console.error('Failed to persist tasks:', e);
+  }
+}
+
+function renderTasks() {
+  const container = document.getElementById('dailyTasksList');
+  const emptyState = document.getElementById('tasksEmptyState');
+  if (!container) return;
+
+  // Filter tasks
+  const filtered = dailyTasks.filter(task => {
+    if (currentTaskFilter === 'pending') return !task.completed;
+    if (currentTaskFilter === 'completed') return task.completed;
+    return true;
+  });
+
+  // Update counts
+  const total = dailyTasks.length;
+  const completed = dailyTasks.filter(t => t.completed).length;
+  const pending = total - completed;
+  const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  const countAll = document.getElementById('countAll');
+  const countPending = document.getElementById('countPending');
+  const countCompleted = document.getElementById('countCompleted');
+  const completedCountEl = document.getElementById('tasksCompletedCount');
+  const totalCountEl = document.getElementById('tasksTotalCount');
+  const percentTextEl = document.getElementById('tasksPercentText');
+  const progressFill = document.getElementById('tasksProgressFill');
+
+  if (countAll) countAll.textContent = total;
+  if (countPending) countPending.textContent = pending;
+  if (countCompleted) countCompleted.textContent = completed;
+  if (completedCountEl) completedCountEl.textContent = completed;
+  if (totalCountEl) totalCountEl.textContent = total;
+  if (percentTextEl) percentTextEl.textContent = `${percent}%`;
+  if (progressFill) progressFill.style.width = `${percent}%`;
+
+  if (filtered.length === 0) {
+    container.innerHTML = '';
+    if (emptyState) emptyState.classList.remove('hidden');
+    return;
+  }
+
+  if (emptyState) emptyState.classList.add('hidden');
+
+  container.innerHTML = filtered.map(task => {
+    const subjectColor = SUBJECT_COLORS[task.subject] || '#38bdf8';
+    return `
+      <div class="task-card-item ${task.completed ? 'completed' : ''}" data-id="${task.id}" style="border-left-color: ${task.completed ? '#10b981' : subjectColor};">
+        <div class="task-card-left">
+          <div class="task-custom-checkbox" onclick="toggleTaskCompletion('${task.id}')" title="${task.completed ? 'Mark pending' : 'Mark completed'}">
+            <span class="task-check-icon">✓</span>
+          </div>
+          <div class="task-card-details">
+            <span class="task-title-text" title="${escapeHtml(task.title)}">${escapeHtml(task.title)}</span>
+            <div class="task-meta-row">
+              <span class="task-badge-subject" style="background: ${subjectColor}22; color: ${subjectColor}; border: 1px solid ${subjectColor}44;">${task.subject}</span>
+              <span class="task-badge-duration">⏱️ ${task.minutes}m target</span>
+            </div>
+          </div>
+        </div>
+        <div class="task-card-right">
+          ${!task.completed ? `
+            <button type="button" class="btn-task-lockin" onclick="launchTaskInLockIn('${task.id}')" title="Instantly load into StudyLock and begin session">
+              <span>▶ Lock In</span>
+            </button>
+          ` : `
+            <span style="font-size: 11px; font-weight: 800; color: #10b981;">✓ Completed</span>
+          `}
+          <button type="button" class="btn-task-delete" onclick="deleteStudyTask('${task.id}')" title="Delete target">🗑️</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+window.toggleTaskCompletion = async function(taskId) {
+  const task = dailyTasks.find(t => t.id === taskId);
+  if (!task) return;
+  task.completed = !task.completed;
+  await persistTasks();
+  renderTasks();
+  if (task.completed) {
+    showToastNotification(`🎉 Completed target: ${task.title}!`);
+  }
+};
+
+window.deleteStudyTask = async function(taskId) {
+  dailyTasks = dailyTasks.filter(t => t.id !== taskId);
+  await persistTasks();
+  renderTasks();
+  showToastNotification('Target removed.');
+};
+
+window.launchTaskInLockIn = function(taskId) {
+  const task = dailyTasks.find(t => t.id === taskId);
+  if (!task) return;
+
+  // 1. Populate Study Player inputs
+  const playerTopic = document.getElementById('playerTopicInput');
+  const playerMinutes = document.getElementById('playerCustomMinutes');
+  if (playerTopic) playerTopic.value = task.title;
+  if (playerMinutes) playerMinutes.value = task.minutes;
+
+  document.querySelectorAll('#playerSubjectChips .chip-bold').forEach(chip => {
+    chip.classList.toggle('active', chip.dataset.subject === task.subject);
+  });
+  document.querySelectorAll('#playerDurationChips .chip-bold').forEach(chip => {
+    chip.classList.toggle('active', parseInt(chip.dataset.minutes, 10) === task.minutes);
+  });
+
+  // 2. Also populate Focus Clock inputs
+  const clockTopic = document.getElementById('clockTopicInput');
+  const clockMinutes = document.getElementById('clockCustomMinutes');
+  if (clockTopic) clockTopic.value = task.title;
+  if (clockMinutes) clockMinutes.value = task.minutes;
+
+  document.querySelectorAll('#clockSubjectChips .chip-bold').forEach(chip => {
+    chip.classList.toggle('active', chip.dataset.subject === task.subject);
+  });
+  document.querySelectorAll('#clockDurationChips .chip-bold').forEach(chip => {
+    chip.classList.toggle('active', parseInt(chip.dataset.minutes, 10) === task.minutes);
+  });
+
+  // 3. Switch to Study Player tab
+  switchTab('tabPlayer');
+
+  // 4. Focus lecture input
+  const urlInput = document.getElementById('ytUrlInput');
+  if (urlInput) {
+    urlInput.focus();
+    showToastNotification(`🚀 Loaded "${task.title}" (${task.minutes}m)! Paste lecture link or switch to Focus Clock.`);
+  }
+};
+
+function autoCompleteMatchingTask(completedTopic) {
+  if (!completedTopic || !dailyTasks.length) return;
+  const match = dailyTasks.find(t => !t.completed && t.title.toLowerCase().trim() === completedTopic.toLowerCase().trim());
+  if (match) {
+    match.completed = true;
+    persistTasks();
+    renderTasks();
+    showToastNotification(`🎯 Auto-completed matching target: "${match.title}"!`);
+  }
+}
+
+
+// ========================================================
+// ZERO-REPETITION DISTRACTION FRICTION ENGINE
+// ========================================================
+const FRICTION_QUESTIONS = [
+  "What you are doing right now... is it taking you closer to your goal, or are you just running away from the grind?",
+  "Jo abhi kar rahe ho... kya wo sach mein zaroori hai ya bas mindless scrolling aur distraction hai?",
+  "Ask yourself honestly: Is what you're doing right now worth the regret tonight at 12:00 AM?",
+  "Agar kisi ne tumhare pichle 30 minutes record kiye hote, toh kya tum unhe dekhkar proud feel karte?",
+  "Look at the clock. The time that just slipped away is never coming back. Is this what you promised yourself?",
+  "Kya tumhara competition bhi is waqt aise hi laptop par time waste kar raha hoga, ya wo padh raha hai?",
+  "Are you genuinely taking a planned break, or is this guilt-filled procrastination eating away your day?",
+  "Remember why you started this entire journey. Does what you're doing right now match your ambition?",
+  "12 baje ke baad afsos hoga ya sukoon? The choice is entirely in your hands right now.",
+  "Agar aaj ka din dubara jeene ko mile, toh kya yahi karoge jo abhi pichle 20 minute se kar rahe ho?",
+  "Your future self is watching you right now through memories. Are you giving them a reason to thank you?",
+  "Boring kaam shuru karne mein sirf 2 minute lagte hain. Can you give just 2 minutes of real focus right now?",
+  "Screen par random refresh karne se koi exam clear nahi hota. Which pending target will you tackle right now?",
+  "Only a few hours left before the 12 AM midnight cutoff. Will you end today as a winner or with excuses?",
+  "Is this random distraction worth sacrificing your rank, your college, and your self-respect?",
+  "Pehle targets complete karo, phir aaraam ka haq banta hai. You still have targets waiting!",
+  "Every single distraction you surrender to is a silent compromise with mediocrity. Stand up and Lock In.",
+  "Do you want to wake up tomorrow morning proud of yesterday's effort, or burdened with another backlog?",
+  "Discipline is simply choosing between what you want now and what you want most. What do you choose right now?",
+  "Ek baar shuru kar doge toh focus apne aap aa jayega. Start the timer, face the topic.",
+  "The pain of discipline weighs ounces, but the pain of regret weighs tons. Get back on track.",
+  "Nobody is coming to complete your daily targets for you. It's only you who can sit down and do it.",
+  "You opened your laptop with an intention to study. What are you actually doing right now?",
+  "Ek ghanta aur guzar gaya. Let's turn this day around right now before the night ends.",
+  "Stop negotiating with laziness. Just open the lecture or book and sit for one solid focus block.",
+  "Self-respect comes from keeping the promises you made to yourself in private. Lock in.",
+  "Distraction is cheap, focus is priceless. Which one are you choosing right at this moment?",
+  "Kal subah regret se uthna hai ya confidence se? 12 AM midnight cutoff is ticking down.",
+  "Are you waiting for the 'perfect mood'? Focus follows action, not mood. Lock in now.",
+  "Ek deep breath lo. Jo useless tabs khule hain unhe close karo, aur agla target shuru karo.",
+  "What you do in the secret hours of your day decides where you stand when results are declared.",
+  "If you don't sacrifice for what you want, what you want becomes the sacrifice. Back to work.",
+  "Har minute jo waste ho raha hai, wo tumhare target ko aur mushkil bana raha hai. Stop drifting.",
+  "You have the potential, the resources, and the time. What's stopping you from giving 100% right now?",
+  "Think of your parents' expectations and their belief in you. Don't let cheap dopamine steal your focus."
+];
+
+let idleOutsideLockInSeconds = 0;
+let frictionCooldownUntil = 0;
+const FRICTION_TRIGGER_THRESHOLD_SECONDS = 900; // 15 minutes of idle/unlocked drift
+let frictionModalActive = false;
+let frictionNextPendingTask = null;
+
+function getNextFrictionQuestion() {
+  const STORAGE_KEY_DECK = 'studylock_friction_deck_v1';
+  const STORAGE_KEY_LAST = 'studylock_friction_last_v1';
+
+  let deck = [];
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_DECK);
+    if (saved) deck = JSON.parse(saved);
+  } catch (e) {
+    deck = [];
+  }
+
+  const lastIndex = parseInt(localStorage.getItem(STORAGE_KEY_LAST) || '-1', 10);
+
+  // Re-fill deck if empty or exhausted
+  if (!Array.isArray(deck) || deck.length === 0) {
+    deck = FRICTION_QUESTIONS.map((_, i) => i);
+    // Don't repeat the very last question on the cycle boundary
+    if (lastIndex >= 0 && deck.length > 1) {
+      deck = deck.filter(i => i !== lastIndex);
+    }
+  }
+
+  // Draw random question from remaining deck
+  const randIdx = Math.floor(Math.random() * deck.length);
+  const pickedQuestionIndex = deck.splice(randIdx, 1)[0];
+
+  try {
+    localStorage.setItem(STORAGE_KEY_DECK, JSON.stringify(deck));
+    localStorage.setItem(STORAGE_KEY_LAST, pickedQuestionIndex.toString());
+  } catch (e) {
+    console.warn('Failed to save friction deck to localStorage:', e);
+  }
+
+  return FRICTION_QUESTIONS[pickedQuestionIndex];
+}
+
+function playFrictionAlertSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5
+    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.35); // A4
+    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.45);
+  } catch (e) {
+    // Ignore audio errors if blocked
+  }
+}
+
+function showDistractionFrictionModal(isManualTest = false) {
+  const modal = document.getElementById('distractionFrictionModal');
+  const questionEl = document.getElementById('frictionQuestionText');
+  const idleDisplay = document.getElementById('frictionIdleTimeDisplay');
+  const midnightDisplay = document.getElementById('frictionMidnightTimeDisplay');
+  const spotlightBox = document.getElementById('frictionTargetSpotlight');
+  const spotlightSubject = document.getElementById('frictionSpotlightSubject');
+  const spotlightTitle = document.getElementById('frictionSpotlightTitle');
+  const spotlightDuration = document.getElementById('frictionSpotlightDuration');
+
+  if (!modal) return;
+
+  // 1. Pick guaranteed non-repeating question
+  const question = getNextFrictionQuestion();
+  if (questionEl) questionEl.textContent = question;
+
+  // 2. Set stats
+  const idleSecs = isManualTest ? Math.max(idleOutsideLockInSeconds, 960) : idleOutsideLockInSeconds;
+  const idleMins = Math.floor(idleSecs / 60);
+  const idleRemainderSecs = idleSecs % 60;
+  if (idleDisplay) {
+    idleDisplay.textContent = `${idleMins}m ${idleRemainderSecs}s`;
+  }
+
+  const midnightStats = getMidnightStats();
+  if (midnightDisplay) {
+    midnightDisplay.textContent = `${midnightStats.hoursStr}h ${midnightStats.minutesStr}m left`;
+  }
+
+  // 3. Find next pending target
+  const pendingTasks = dailyTasks.filter(t => !t.completed);
+  if (pendingTasks.length > 0) {
+    frictionNextPendingTask = pendingTasks[0];
+    if (spotlightBox) spotlightBox.classList.remove('hidden');
+    if (spotlightSubject) {
+      spotlightSubject.textContent = frictionNextPendingTask.subject;
+      const col = SUBJECT_COLORS[frictionNextPendingTask.subject] || '#38bdf8';
+      spotlightSubject.style.color = col;
+      spotlightSubject.style.borderColor = col;
+    }
+    if (spotlightTitle) spotlightTitle.textContent = frictionNextPendingTask.title;
+    if (spotlightDuration) spotlightDuration.textContent = `⏱️ ${frictionNextPendingTask.minutes}m`;
+  } else {
+    frictionNextPendingTask = null;
+    if (spotlightBox) spotlightBox.classList.remove('hidden');
+    if (spotlightSubject) spotlightSubject.textContent = 'PLAN';
+    if (spotlightTitle) spotlightTitle.textContent = 'No pending target added yet. Head to Today\'s Plan to add targets!';
+    if (spotlightDuration) spotlightDuration.textContent = 'Today';
+  }
+
+  // 4. Play alert chime and display modal
+  playFrictionAlertSound();
+  modal.classList.remove('hidden');
+  frictionModalActive = true;
+}
+
+function hideDistractionFrictionModal() {
+  const modal = document.getElementById('distractionFrictionModal');
+  if (modal) modal.classList.add('hidden');
+  frictionModalActive = false;
+  idleOutsideLockInSeconds = 0;
+}
+
+function setupDistractionFrictionEngine() {
+  // Test Button in Today's Plan
+  const btnTest = document.getElementById('btnTestFrictionPrompt');
+  if (btnTest) {
+    btnTest.addEventListener('click', () => {
+      showDistractionFrictionModal(true);
+    });
+  }
+
+  // Snooze Button
+  const btnSnooze = document.getElementById('btnFrictionSnooze');
+  if (btnSnooze) {
+    btnSnooze.addEventListener('click', () => {
+      frictionCooldownUntil = Date.now() + 5 * 60 * 1000; // 5 minute snooze
+      hideDistractionFrictionModal();
+      showToastNotification('⏳ Break snoozed for 5 minutes. Take a breath and get ready to Lock In!');
+    });
+  }
+
+  // Lock In Button in Modal
+  const btnLockIn = document.getElementById('btnFrictionLockIn');
+  if (btnLockIn) {
+    btnLockIn.addEventListener('click', () => {
+      hideDistractionFrictionModal();
+      if (frictionNextPendingTask) {
+        launchTaskInLockIn(frictionNextPendingTask.id);
+      } else {
+        switchTab('tabPlayer');
+        showToastNotification('🚀 Ready to study! Set your lecture and Lock In.');
+      }
+    });
+  }
+
+  // Idle Drift Ticker: checks every second outside Lock-In
+  setInterval(() => {
+    // If user is currently in a study session, reset idle drift
+    if (activeSession) {
+      idleOutsideLockInSeconds = 0;
+      return;
+    }
+
+    idleOutsideLockInSeconds++;
+
+    // Check if threshold reached
+    if (
+      idleOutsideLockInSeconds >= FRICTION_TRIGGER_THRESHOLD_SECONDS &&
+      Date.now() > frictionCooldownUntil &&
+      !frictionModalActive
+    ) {
+      showDistractionFrictionModal(false);
+    }
+  }, 1000);
+
+  // Window focus trigger: when student clicks back onto StudyLock after drifting
+  window.addEventListener('focus', () => {
+    if (
+      !activeSession &&
+      idleOutsideLockInSeconds >= FRICTION_TRIGGER_THRESHOLD_SECONDS &&
+      Date.now() > frictionCooldownUntil &&
+      !frictionModalActive
+    ) {
+      showDistractionFrictionModal(false);
+    }
+  });
 }
