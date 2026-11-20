@@ -17,10 +17,8 @@ let ritualMode = 'random'; // 'random' | 'custom'
 let currentVideoId = '';
 let isParentProofOpen = false;
 
-// Dedicated Dual Deck State (YouTube + RaySensei)
-let currentDeck = 'youtube'; // 'youtube' | 'raysensei'
-let ytWebviewEl = null;
-let rayWebviewEl = null;
+// Player State
+let playerWebviewEl = null;
 
 // Dual Clock Mode state
 let clockMode = 'locked'; // 'locked' | 'free'
@@ -191,15 +189,6 @@ function setupPlayerSection() {
   const btnPRegen = document.getElementById('btnPlayerRegenCode');
   if (btnPRegen) btnPRegen.addEventListener('click', generateNewRandomCode);
 
-  // Dual Deck Top Bar Switcher Pills
-  const pillYt = document.getElementById('deckPillYt');
-  if (pillYt) pillYt.addEventListener('click', () => switchToDeck('youtube'));
-  const pillRay = document.getElementById('deckPillRay');
-  if (pillRay) pillRay.addEventListener('click', () => switchToDeck('raysensei'));
-
-  // Ensure Floating Edge Navigation Arrows are wired
-  ensureEdgeArrowButtons();
-
   // Preview Button: Render Live Direct Watch in Stage Screen
   const btnPreview = document.getElementById('btnPreviewUrl');
   const btnClosePrev = document.getElementById('btnClosePreview');
@@ -230,107 +219,6 @@ function setupPlayerSection() {
   // Permanent Bar Emergency Exit Button
   const btnEmerg = document.getElementById('btnPlayerEmergency');
   if (btnEmerg) btnEmerg.addEventListener('click', openEmergencyModal);
-
-  // Setup Screen: 10-Second Chrome Sync for RaySensei
-  setupRaySenseiSyncUI();
-}
-
-function setupRaySenseiSyncUI() {
-  const btnOpenSync = document.getElementById('btnOpenSyncRaySensei');
-  const btnCloseSync = document.getElementById('btnCloseSyncRaySensei');
-  const modal = document.getElementById('syncRaySenseiModal');
-  const btnDirect = document.getElementById('btnLaunchDirectLogin');
-  const btnBrowser = document.getElementById('btnLaunchBrowserBridge');
-  const feedback = document.getElementById('syncStatusFeedback');
-
-  function markAsConnected() {
-    if (btnOpenSync) {
-      btnOpenSync.textContent = '✓ RaySensei Connected';
-      btnOpenSync.style.color = '#34d399';
-      btnOpenSync.title = 'RaySensei account is connected and ready';
-    }
-  }
-
-  // Check if already authenticated on app launch
-  if (window.api && window.api.checkRaySenseiAuthStatus) {
-    window.api.checkRaySenseiAuthStatus().then(res => {
-      if (res && res.isLoggedIn) {
-        markAsConnected();
-      }
-    }).catch(() => {});
-  } else if (localStorage.getItem('studylock_raysensei_session')) {
-    markAsConnected();
-  }
-
-  // Open / Close Modal
-  if (btnOpenSync && modal) {
-    btnOpenSync.addEventListener('click', () => {
-      if (feedback) {
-        feedback.className = 'sync-feedback-text hidden';
-        feedback.textContent = '';
-      }
-      modal.classList.remove('hidden');
-    });
-  }
-
-  if (btnCloseSync && modal) {
-    btnCloseSync.addEventListener('click', () => {
-      modal.classList.add('hidden');
-    });
-  }
-
-  // Option 1: Direct 1-Click Login (Secured with Google Bypass)
-  if (btnDirect) {
-    btnDirect.addEventListener('click', async () => {
-      if (feedback) {
-        feedback.className = 'sync-feedback-text sync-feedback-success';
-        feedback.textContent = 'Opening RaySensei sign-in window... Please sign in with your Google account.';
-        feedback.classList.remove('hidden');
-      }
-      if (window.api && window.api.openRaySenseiLogin) {
-        await window.api.openRaySenseiLogin();
-      }
-    });
-  }
-
-  // Option 2: Method 1 External System Browser Flow
-  if (btnBrowser) {
-    btnBrowser.addEventListener('click', async () => {
-      if (feedback) {
-        feedback.className = 'sync-feedback-text sync-feedback-success';
-        feedback.textContent = 'Browser opened! Log into RaySensei in your browser and click "⚡ Sync to StudyLock" on your bookmarks bar.';
-        feedback.classList.remove('hidden');
-      }
-      if (window.api && window.api.startRaySenseiBrowserAuth) {
-        await window.api.startRaySenseiBrowserAuth();
-      }
-    });
-  }
-
-  // Listen for Authentication Success event from Main Process
-  if (window.api && window.api.onRaySenseiAuthSuccess) {
-    window.api.onRaySenseiAuthSuccess(() => {
-      markAsConnected();
-      localStorage.setItem('studylock_raysensei_session', 'true');
-
-      if (feedback) {
-        feedback.className = 'sync-feedback-text sync-feedback-success';
-        feedback.textContent = '🎉 RaySensei account connected successfully! Account ready for Dual Deck.';
-        feedback.classList.remove('hidden');
-      }
-
-      showToastNotification('✓ RaySensei connected successfully! Account ready.');
-
-      // Reload live RaySensei webview if currently mounted
-      if (rayWebviewEl) {
-        try { rayWebviewEl.reload(); } catch (e) {}
-      }
-
-      setTimeout(() => {
-        if (modal) modal.classList.add('hidden');
-      }, 1500);
-    });
-  }
 }
 
 function renderPreviewPlayer(videoId) {
@@ -447,14 +335,14 @@ function extractYouTubeId(url) {
 }
 
 // ========================================================
-// DEDICATED DUAL DECK ENGINE: YouTube + RaySensei
+// IMMERSION PLAYER ENGINE: YouTube
 // ========================================================
 function escapeHtml(str) {
   if (!str) return '';
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function destroyDualDeckWebviews() {
+function destroyPlayerWebviews() {
   const wrapper = document.getElementById('videoFrameWrapper');
   if (wrapper) {
     const webviews = wrapper.querySelectorAll('webview');
@@ -465,98 +353,21 @@ function destroyDualDeckWebviews() {
       wv.remove();
     });
   }
-  ytWebviewEl = null;
-  rayWebviewEl = null;
+  playerWebviewEl = null;
 }
 
-function ensureEdgeArrowButtons() {
+function initPlayerWebview(videoId) {
   const wrapper = document.getElementById('videoFrameWrapper');
   if (!wrapper) return;
 
-  let btnFlipRay = document.getElementById('btnFlipToRaySensei');
-  if (!btnFlipRay) {
-    btnFlipRay = document.createElement('button');
-    btnFlipRay.id = 'btnFlipToRaySensei';
-    btnFlipRay.className = 'deck-edge-arrow arrow-edge-right';
-    btnFlipRay.title = 'Flip to RaySensei (Alt+Right / Ctrl+2)';
-    btnFlipRay.innerHTML = '<span class="edge-arrow-icon">❯</span><span class="edge-arrow-tag">RaySensei</span>';
-    wrapper.appendChild(btnFlipRay);
-  }
+  destroyPlayerWebviews();
 
-  let btnFlipYt = document.getElementById('btnFlipToYouTube');
-  if (!btnFlipYt) {
-    btnFlipYt = document.createElement('button');
-    btnFlipYt.id = 'btnFlipToYouTube';
-    btnFlipYt.className = 'deck-edge-arrow arrow-edge-left hidden';
-    btnFlipYt.title = 'Flip back to Lecture (Alt+Left / Ctrl+1)';
-    btnFlipYt.innerHTML = '<span class="edge-arrow-icon">❮</span><span class="edge-arrow-tag">Lecture</span>';
-    wrapper.appendChild(btnFlipYt);
-  }
-
-  btnFlipRay.onclick = (e) => {
-    e.stopPropagation();
-    switchToDeck('raysensei');
-  };
-  btnFlipYt.onclick = (e) => {
-    e.stopPropagation();
-    switchToDeck('youtube');
-  };
-}
-
-function switchToDeck(target) {
-  currentDeck = target;
-  const pillYt = document.getElementById('deckPillYt');
-  const pillRay = document.getElementById('deckPillRay');
-  const arrowRight = document.getElementById('btnFlipToRaySensei');
-  const arrowLeft = document.getElementById('btnFlipToYouTube');
-  const hudTopic = document.getElementById('playerHudTopic');
-
-  if (target === 'youtube') {
-    if (ytWebviewEl) {
-      ytWebviewEl.classList.remove('inactive-workspace');
-      ytWebviewEl.classList.add('active-workspace');
-      try { ytWebviewEl.focus(); } catch (e) {}
-    }
-    if (rayWebviewEl) {
-      rayWebviewEl.classList.remove('active-workspace');
-      rayWebviewEl.classList.add('inactive-workspace');
-    }
-    if (pillYt) pillYt.classList.add('active');
-    if (pillRay) pillRay.classList.remove('active');
-    if (arrowRight) arrowRight.classList.remove('hidden');
-    if (arrowLeft) arrowLeft.classList.add('hidden');
-    if (hudTopic) hudTopic.textContent = 'YouTube Lecture';
-  } else {
-    // RaySensei
-    if (rayWebviewEl) {
-      rayWebviewEl.classList.remove('inactive-workspace');
-      rayWebviewEl.classList.add('active-workspace');
-      try { rayWebviewEl.focus(); } catch (e) {}
-    }
-    if (ytWebviewEl) {
-      ytWebviewEl.classList.remove('active-workspace');
-      ytWebviewEl.classList.add('inactive-workspace');
-    }
-    if (pillRay) pillRay.classList.add('active');
-    if (pillYt) pillYt.classList.remove('active');
-    if (arrowRight) arrowRight.classList.add('hidden');
-    if (arrowLeft) arrowLeft.classList.remove('hidden');
-    if (hudTopic) hudTopic.textContent = 'RaySensei';
-  }
-}
-
-function initDedicatedDualDeck(videoId) {
-  const wrapper = document.getElementById('videoFrameWrapper');
-  if (!wrapper) return;
-
-  destroyDualDeckWebviews();
-
-  // 1. YouTube Webview (Primary)
+  // Pure YouTube Immersion Webview
   const ytWv = document.createElement('webview');
   ytWv.id = 'ws_webview_yt';
   ytWv.className = 'workspace-webview active-workspace';
   ytWv.setAttribute('allowfullscreen', 'true');
-  ytWv.setAttribute('allowpopups', 'true');
+  ytWv.setAttribute('allowpopups', 'false');
   ytWv.setAttribute('partition', 'persist:studylock_session');
   ytWv.setAttribute('useragent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0');
   ytWv.src = `https://www.youtube.com/watch?v=${videoId}&autoplay=1`;
@@ -606,71 +417,8 @@ function initDedicatedDualDeck(videoId) {
     `).catch(() => {});
   });
 
-  // 2. RaySensei Webview (Simultaneous Background Companion)
-  const rayWv = document.createElement('webview');
-  rayWv.id = 'ws_webview_raysensei';
-  rayWv.className = 'workspace-webview inactive-workspace';
-  rayWv.setAttribute('allowfullscreen', 'true');
-  rayWv.setAttribute('allowpopups', 'true');
-  rayWv.setAttribute('partition', 'persist:studylock_session');
-  rayWv.setAttribute('useragent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0');
-  rayWv.src = 'https://app.raysensei.com/';
-
-  // Allow navigation inside RaySensei and OAuth providers
-  rayWv.addEventListener('will-navigate', (e) => {
-    try {
-      const navUrl = new URL(e.url);
-      const navHost = navUrl.hostname.toLowerCase();
-      const isAllowed = navHost.includes('raysensei.com') ||
-                        navHost.includes('google.com') ||
-                        navHost.includes('googleusercontent.com') ||
-                        navHost.includes('gstatic.com') ||
-                        navHost.includes('firebaseapp.com') ||
-                        navHost.includes('supabase.co') ||
-                        navHost.includes('clerk.dev') ||
-                        navHost.includes('auth0.com');
-      if (!isAllowed) {
-        e.preventDefault();
-        console.warn('Navigation blocked by StudyLock Whitelist Firewall:', e.url);
-      }
-    } catch (err) {
-      e.preventDefault();
-    }
-  });
-
-  // Automatically inject synced login credentials on load
-  rayWv.addEventListener('dom-ready', () => {
-    const saved = localStorage.getItem('studylock_raysensei_session');
-    if (saved) {
-      rayWv.executeJavaScript(`
-        try {
-          const raw = ${JSON.stringify(saved)};
-          const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-          let updated = false;
-          for (const [k, v] of Object.entries(parsed)) {
-            const strVal = typeof v === 'object' ? JSON.stringify(v) : String(v);
-            if (localStorage.getItem(k) !== strVal) {
-              localStorage.setItem(k, strVal);
-              updated = true;
-            }
-          }
-          if (updated) {
-            window.location.reload();
-          }
-        } catch (e) {}
-      `).catch(() => {});
-    }
-  });
-
-  // Prepend webviews so edge arrow buttons remain on top
-  wrapper.prepend(rayWv);
-  wrapper.prepend(ytWv);
-
-  ytWebviewEl = ytWv;
-  rayWebviewEl = rayWv;
-
-  ensureEdgeArrowButtons();
-  switchToDeck('youtube');
+  wrapper.appendChild(ytWv);
+  playerWebviewEl = ytWv;
 }
 
 function handlePlayerLaunch() {
@@ -719,8 +467,8 @@ function handlePlayerLaunch() {
     const hudTop = document.getElementById('playerHudTopic');
     if (hudTop) hudTop.textContent = topic;
 
-    // Launch Dedicated Dual Deck (YouTube + RaySensei)
-    initDedicatedDualDeck(videoData.videoId);
+    // Launch Pristine YouTube Immersion Lecture
+    initPlayerWebview(videoData.videoId);
 
     startSessionEngine({
       type: 'player',
@@ -743,28 +491,20 @@ function handlePlayerLaunch() {
 }
 
 function pauseCurrentPlayer() {
-  if (ytWebviewEl) {
-    ytWebviewEl.executeJavaScript('const v = document.querySelector("video"); if (v) v.pause();').catch(() => {});
-  }
-  if (rayWebviewEl) {
-    rayWebviewEl.executeJavaScript('const v = document.querySelector("video, audio"); if (v) v.pause();').catch(() => {});
+  if (playerWebviewEl) {
+    playerWebviewEl.executeJavaScript('const v = document.querySelector("video"); if (v) v.pause();').catch(() => {});
   }
 }
 
 function resumeCurrentPlayer() {
-  if (currentDeck === 'youtube' && ytWebviewEl) {
-    ytWebviewEl.executeJavaScript('const v = document.querySelector("video"); if (v) v.play();').catch(() => {});
-  } else if (currentDeck === 'raysensei' && rayWebviewEl) {
-    rayWebviewEl.executeJavaScript('const v = document.querySelector("video, audio"); if (v) v.play();').catch(() => {});
+  if (playerWebviewEl) {
+    playerWebviewEl.executeJavaScript('const v = document.querySelector("video"); if (v) v.play();').catch(() => {});
   }
 }
 
 function exitWebviewFullscreenIfActive() {
-  if (ytWebviewEl) {
-    ytWebviewEl.executeJavaScript('if (document.fullscreenElement) document.exitFullscreen();').catch(() => {});
-  }
-  if (rayWebviewEl) {
-    rayWebviewEl.executeJavaScript('if (document.fullscreenElement) document.exitFullscreen();').catch(() => {});
+  if (playerWebviewEl) {
+    playerWebviewEl.executeJavaScript('if (document.fullscreenElement) document.exitFullscreen();').catch(() => {});
   }
 }
 
@@ -1239,13 +979,6 @@ function setupParentProofOverlay() {
     });
   }
 
-  if (window.api && window.api.onSwitchWorkspace) {
-    window.api.onSwitchWorkspace((index) => {
-      if (index === 0) switchToDeck('youtube');
-      else if (index === 1) switchToDeck('raysensei');
-    });
-  }
-
   if (modal) {
     modal.addEventListener('click', (e) => {
       if (e.target === modal) {
@@ -1254,7 +987,7 @@ function setupParentProofOverlay() {
     });
   }
 
-  // Global Backtick (` / ~) & Dual Deck shortcuts
+  // Global Backtick (` / ~) Parent Proof shortcut
   window.addEventListener('keydown', (e) => {
     const isBacktick = (e.key === '`' || e.key === '~' || e.code === 'Backquote');
     if (isBacktick && activeSession) {
@@ -1265,29 +998,6 @@ function setupParentProofOverlay() {
       exitWebviewFullscreenIfActive();
       toggleParentProof();
       return;
-    }
-
-    // Intercept Dual Deck flipping (Alt+Left/Right or Ctrl+1/2)
-    if (activeSession && activeSession.type === 'player') {
-      if ((e.ctrlKey || e.metaKey) && e.key === '1') {
-        e.preventDefault();
-        switchToDeck('youtube');
-        return;
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === '2') {
-        e.preventDefault();
-        switchToDeck('raysensei');
-        return;
-      }
-      if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
-        e.preventDefault();
-        if (e.key === 'ArrowLeft') {
-          switchToDeck('youtube');
-        } else {
-          switchToDeck('raysensei');
-        }
-        return;
-      }
     }
 
     if (e.key === 'Escape' && isParentProofOpen) {
@@ -1328,7 +1038,6 @@ function updateParentProofContent() {
 
   try {
     const subject = activeSession.subject || 'General Study';
-    const activeTabName = currentDeck === 'youtube' ? 'YouTube Lecture' : 'RaySensei';
     const topic = activeSession.topic || 'Lecture Immersion';
     const elapsed = Math.max(1, activeSession.elapsedSeconds || 1);
     const targetMinutes = activeSession.targetMinutes || 45;
@@ -1350,7 +1059,7 @@ function updateParentProofContent() {
     const msgEl = document.getElementById('parentProofDynamicMessage');
 
     if (subEl) subEl.textContent = subject.toUpperCase();
-    if (topicEl) topicEl.textContent = `${topic} (${activeTabName})`;
+    if (topicEl) topicEl.textContent = topic;
 
     // Exact, live dynamic elapsed time
     if (elapEl) {
