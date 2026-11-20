@@ -108,6 +108,8 @@ function setupWindowControls() {
       currentSessionRecord.durationSeconds = elapsed;
       currentSessionRecord.completedAt = new Date().toISOString();
       currentSessionRecord.exitReason = 'mid_session_closed';
+      if (activeSession.youtubeUrl) currentSessionRecord.youtubeUrl = activeSession.youtubeUrl;
+      if (activeSession.videoId) currentSessionRecord.videoId = activeSession.videoId;
       window.api.saveStudySession(currentSessionRecord);
     }
   });
@@ -505,7 +507,9 @@ function handlePlayerLaunch() {
       clockMode: 'locked',
       subject,
       topic,
-      targetMinutes
+      targetMinutes,
+      youtubeUrl: url,
+      videoId: videoData.videoId
     });
 
     const studioView = document.querySelector('#tabPlayer .studio-viewport-expansive');
@@ -774,7 +778,9 @@ function startSessionEngine(config) {
     durationSeconds: 1,
     targetDurationMinutes: activeSession.targetMinutes || 0,
     completedAt: new Date().toISOString(),
-    exitReason: 'in_progress'
+    exitReason: 'in_progress',
+    youtubeUrl: activeSession.youtubeUrl || '',
+    videoId: activeSession.videoId || ''
   };
 
   window.api.saveStudySession(currentSessionRecord);
@@ -939,7 +945,9 @@ async function finishAndSaveSession(exitReason = 'target_completed') {
     durationSeconds,
     targetDurationMinutes: activeSession.targetMinutes || 0,
     completedAt: new Date().toISOString(),
-    exitReason
+    exitReason,
+    youtubeUrl: activeSession.youtubeUrl || '',
+    videoId: activeSession.videoId || ''
   };
 
   // 1. Save synchronously via IPC to study_data.json
@@ -2014,7 +2022,9 @@ function launchTaskIntoPlayer(task, minutes, videoId, unlockKey) {
     clockMode: 'locked',
     subject: task.subject,
     topic: task.title,
-    targetMinutes: minutes
+    targetMinutes: minutes,
+    youtubeUrl: task.youtubeUrl || (urlInput ? urlInput.value.trim() : ''),
+    videoId: videoId
   });
 
   const studioView = document.querySelector('#tabPlayer .studio-viewport-expansive');
@@ -2328,6 +2338,8 @@ async function setupAnalysisSection() {
   const btnPrev = document.getElementById('btnAnalysisPrevDay');
   const btnNext = document.getElementById('btnAnalysisNextDay');
   const btnToday = document.getElementById('btnAnalysisToday');
+  const sessionsLogListEl = document.getElementById('analysisSessionsLogList');
+  const targetsListEl = document.getElementById('analysisCompletedTargetsList');
 
   if (btnPrev) {
     btnPrev.addEventListener('click', () => {
@@ -2353,8 +2365,80 @@ async function setupAnalysisSection() {
     });
   }
 
+  if (sessionsLogListEl) {
+    sessionsLogListEl.addEventListener('click', (e) => {
+      const copyBtn = e.target.closest('.btn-copy-lecture-link');
+      if (copyBtn) {
+        e.stopPropagation();
+        const url = copyBtn.dataset.url;
+        if (url) copyLectureLink(url);
+        return;
+      }
+      const reopenBtn = e.target.closest('.btn-reopen-lecture');
+      if (reopenBtn) {
+        e.stopPropagation();
+        const url = reopenBtn.dataset.url;
+        const topic = reopenBtn.dataset.topic;
+        if (url) reopenLectureInPlayer(url, topic);
+        return;
+      }
+      const urlText = e.target.closest('.session-yt-url');
+      if (urlText) {
+        e.stopPropagation();
+        const url = urlText.title || urlText.textContent.trim();
+        if (url) copyLectureLink(url);
+        return;
+      }
+    });
+  }
+
+  if (targetsListEl) {
+    targetsListEl.addEventListener('click', (e) => {
+      const copyBtn = e.target.closest('.btn-copy-lecture-link');
+      if (copyBtn) {
+        e.stopPropagation();
+        const url = copyBtn.dataset.url;
+        if (url) copyLectureLink(url);
+        return;
+      }
+    });
+  }
+
   await renderAnalysis();
 }
+
+async function copyLectureLink(url) {
+  if (!url) return;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(url);
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = url;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    showToastNotification('📋 Lecture link copied to clipboard!');
+  } catch (err) {
+    prompt('Copy YouTube lecture link:', url);
+  }
+}
+
+function reopenLectureInPlayer(url, topic) {
+  if (!url) return;
+  switchTab('tabPlayer');
+  const urlInput = document.getElementById('ytUrlInput');
+  const topicInput = document.getElementById('playerTopicInput');
+  if (urlInput) urlInput.value = url;
+  if (topicInput && topic) topicInput.value = topic;
+  validateYouTubeUrl(url);
+  showToastNotification(`▶ Loaded "${topic || 'Lecture'}" into Study Player!`);
+}
+
+window.copyLectureLink = copyLectureLink;
+window.reopenLectureInPlayer = reopenLectureInPlayer;
 
 function formatAnalysisDateLabel(date) {
   const today = new Date();
@@ -2543,7 +2627,15 @@ async function renderAnalysis() {
               <span class="task-badge-subject" style="background: ${color}22; color: ${color};">${t.subject}</span>
               <span class="audit-target-title" title="${escapeHtml(t.title)}">${escapeHtml(t.title)}</span>
             </div>
-            <span class="audit-target-duration">⏱️ ${t.minutes}m</span>
+            <div class="audit-target-right">
+              ${t.youtubeUrl ? `
+                <button type="button" class="btn-session-yt btn-copy-lecture-link" data-url="${escapeHtml(t.youtubeUrl)}" title="Copy YouTube Lecture link to clipboard">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 3px;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  Link
+                </button>
+              ` : ''}
+              <span class="audit-target-duration">⏱️ ${t.minutes}m</span>
+            </div>
           </div>
         `;
       }).join('');
@@ -2564,6 +2656,9 @@ async function renderAnalysis() {
         const isCompletedFull = s.exitReason === 'completed' || s.exitReason === 'normal_closed' || s.exitReason === '100%_complete';
         const reasonBadge = isCompletedFull ? `<span style="color: #10b981; font-size: 10px; font-weight: 800;">✓ Completed</span>` : `<span style="color: #f59e0b; font-size: 10px; font-weight: 800;">⚡ Logged</span>`;
 
+        // Check if session has youtubeUrl or matches a target task with youtubeUrl
+        const ytLink = s.youtubeUrl || (allTasks && allTasks.find(t => t.title && s.topic && t.title.toLowerCase().trim() === s.topic.toLowerCase().trim() && t.youtubeUrl)?.youtubeUrl) || '';
+
         return `
           <div class="session-audit-card">
             <div class="session-audit-main">
@@ -2573,6 +2668,29 @@ async function renderAnalysis() {
                 <span class="session-audit-mode">${escapeHtml(s.mode || 'Immersion')}</span>
                 ${reasonBadge}
               </div>
+              ${ytLink ? `
+                <div class="session-yt-box">
+                  <div class="session-yt-meta">
+                    <span class="session-yt-badge">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="#ef4444" style="vertical-align: middle; margin-right: 4px;">
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                      </svg>
+                      Lecture Link
+                    </span>
+                    <span class="session-yt-url" title="${escapeHtml(ytLink)}">${escapeHtml(ytLink)}</span>
+                  </div>
+                  <div class="session-yt-actions">
+                    <button type="button" class="btn-session-yt btn-copy-lecture-link" data-url="${escapeHtml(ytLink)}" title="Copy YouTube Lecture link to clipboard">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                      Copy Link
+                    </button>
+                    <button type="button" class="btn-session-yt btn-reopen-lecture" data-url="${escapeHtml(ytLink)}" data-topic="${escapeHtml(s.topic)}" title="Load lecture back into Study Player">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 4px;"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                      Re-watch in Player
+                    </button>
+                  </div>
+                </div>
+              ` : ''}
             </div>
             <div class="session-audit-time-block">
               <span class="session-audit-duration">${formatExactDurationSmart(s.durationSeconds || 0)}</span>

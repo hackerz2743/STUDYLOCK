@@ -132,7 +132,9 @@ function createWindow() {
         durationSeconds: elapsedSeconds,
         targetDurationMinutes: activeSessionData.targetMinutes || 0,
         completedAt: new Date().toISOString(),
-        exitReason: 'app_closed'
+        exitReason: 'app_closed',
+        youtubeUrl: activeSessionData.youtubeUrl || '',
+        videoId: activeSessionData.videoId || ''
       };
 
       if (existingIdx >= 0) {
