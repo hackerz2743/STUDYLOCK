@@ -54,6 +54,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Midnight Countdown, Daily Targets & Distraction Friction Engine
   setupMidnightCountdownAndDate();
   await setupTodayTasksSection();
+  setupTargetLockInModal();
   setupDistractionFrictionEngine();
 });
 
@@ -1348,13 +1349,50 @@ function updateMidnightDisplays() {
   if (heroM) heroM.textContent = stats.minutesStr;
   if (heroS) heroS.textContent = stats.secondsStr;
   if (dayBurnFill) dayBurnFill.style.width = `${stats.burnPercent}%`;
-  if (dayBurnPct) dayBurnPct.textContent = `Day Burn: ${stats.burnPercent}% elapsed`;
+  if (dayBurnPct) dayBurnPct.textContent = `${stats.burnPercent}% elapsed`;
   if (dayBurnRem) dayBurnRem.textContent = `${stats.hours}h ${stats.minutes}m left today`;
 
-  // 3. Friction Modal (if currently displayed)
+  // 3. Automated Study Math & Telemetry Buffer
+  updateTelemetryMath();
+
+  // 4. Friction Modal (if currently displayed)
   const frictionMidnight = document.getElementById('frictionMidnightTimeDisplay');
   if (frictionMidnight) {
     frictionMidnight.textContent = `${stats.hoursStr}h ${stats.minutesStr}m ${stats.secondsStr}s`;
+  }
+}
+
+function updateTelemetryMath() {
+  const plannedEl = document.getElementById('telemetryPlannedTime');
+  const remainingEl = document.getElementById('telemetryRemainingTime');
+  const bufferEl = document.getElementById('telemetryBufferStatus');
+  if (!plannedEl || !remainingEl || !bufferEl) return;
+
+  // 1. Calculate total planned minutes across all pending tasks
+  const pendingTasks = dailyTasks.filter(t => !t.completed);
+  const totalPlannedMins = pendingTasks.reduce((acc, t) => acc + (t.minutes || 0), 0);
+  const plannedH = Math.floor(totalPlannedMins / 60);
+  const plannedM = totalPlannedMins % 60;
+  plannedEl.textContent = `${plannedH}h ${String(plannedM).padStart(2, '0')}m`;
+
+  // 2. Calculate remaining minutes until 12 AM
+  const stats = getMidnightStats();
+  const totalRemainingMins = Math.floor(stats.totalSeconds / 60);
+  remainingEl.textContent = `${stats.hours}h ${String(stats.minutes).padStart(2, '0')}m`;
+
+  // 3. Compute Schedule Buffer
+  const bufferMins = totalRemainingMins - totalPlannedMins;
+  if (bufferMins >= 0) {
+    const bufH = Math.floor(bufferMins / 60);
+    const bufM = bufferMins % 60;
+    bufferEl.textContent = `+${bufH}h ${String(bufM).padStart(2, '0')}m buffer`;
+    bufferEl.className = 'math-buffer-pill positive';
+  } else {
+    const defMins = Math.abs(bufferMins);
+    const defH = Math.floor(defMins / 60);
+    const defM = defMins % 60;
+    bufferEl.textContent = `⚠️ -${defH}h ${String(defM).padStart(2, '0')}m deficit`;
+    bufferEl.className = 'math-buffer-pill deficit';
   }
 }
 
@@ -1366,7 +1404,7 @@ function setupMidnightCountdownAndDate() {
 
 
 // ========================================================
-// DAILY TARGETS & TASK PLANNER
+// DAILY TARGETS & TASK PLANNER (STUDIO REDESIGN)
 // ========================================================
 let dailyTasks = [];
 let currentTaskFilter = 'all'; // 'all' | 'pending' | 'completed'
@@ -1398,8 +1436,56 @@ async function setupTodayTasksSection() {
       document.querySelectorAll('#taskDurationChips .chip-bold').forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
       selectedTaskMinutes = parseInt(chip.dataset.minutes, 10) || 45;
+      const minInput = document.getElementById('taskCustomMinutes');
+      if (minInput) minInput.value = selectedTaskMinutes;
     });
   });
+
+  // Custom Duration Stepper (-5 / +5)
+  const btnSub5 = document.getElementById('btnTaskSub5');
+  const btnAdd5 = document.getElementById('btnTaskAdd5');
+  const customMinInput = document.getElementById('taskCustomMinutes');
+
+  if (btnSub5 && customMinInput) {
+    btnSub5.addEventListener('click', () => {
+      let val = Math.max(1, (parseInt(customMinInput.value, 10) || 45) - 5);
+      customMinInput.value = val;
+      selectedTaskMinutes = val;
+      updateTaskDurationChipActive(val);
+    });
+  }
+
+  if (btnAdd5 && customMinInput) {
+    btnAdd5.addEventListener('click', () => {
+      let val = Math.min(600, (parseInt(customMinInput.value, 10) || 45) + 5);
+      customMinInput.value = val;
+      selectedTaskMinutes = val;
+      updateTaskDurationChipActive(val);
+    });
+  }
+
+  if (customMinInput) {
+    customMinInput.addEventListener('input', () => {
+      let val = parseInt(customMinInput.value, 10) || 45;
+      selectedTaskMinutes = val;
+      updateTaskDurationChipActive(val);
+    });
+  }
+
+  // YouTube Link Paste Button
+  const btnPasteYt = document.getElementById('btnTaskPasteYt');
+  const ytInput = document.getElementById('taskYoutubeInput');
+  if (btnPasteYt && ytInput) {
+    btnPasteYt.addEventListener('click', async () => {
+      try {
+        const text = await navigator.clipboard.readText();
+        ytInput.value = text;
+        showToastNotification('✓ Pasted lecture URL');
+      } catch (e) {
+        ytInput.focus();
+      }
+    });
+  }
 
   // Add Task Button
   const btnAdd = document.getElementById('btnAddTask');
@@ -1434,20 +1520,48 @@ async function setupTodayTasksSection() {
       dailyTasks = dailyTasks.filter(t => !t.completed);
       await persistTasks();
       renderTasks();
+      updateTelemetryMath();
       showToastNotification(`Cleared ${completedCount} completed target(s).`);
     });
   }
 
+  // Keyboard Shortcuts: '/' to focus composer, Ctrl+Enter to launch top target
+  window.addEventListener('keydown', (e) => {
+    if (e.key === '/' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+      e.preventDefault();
+      switchTab('tabTasks');
+      const input = document.getElementById('taskTitleInput');
+      if (input) input.focus();
+      return;
+    }
+
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      const pendingList = dailyTasks.filter(t => !t.completed);
+      if (pendingList.length > 0) {
+        window.openTargetLockInModal(pendingList[0].id);
+      }
+    }
+  });
+
   // Initial render
   renderTasks();
+  updateTelemetryMath();
+}
+
+function updateTaskDurationChipActive(val) {
+  document.querySelectorAll('#taskDurationChips .chip-bold').forEach(chip => {
+    chip.classList.toggle('active', parseInt(chip.dataset.minutes, 10) === val);
+  });
 }
 
 async function handleAddNewTask() {
-  const input = document.getElementById('taskTitleInput');
-  const title = input ? input.value.trim() : '';
+  const titleInput = document.getElementById('taskTitleInput');
+  const ytInput = document.getElementById('taskYoutubeInput');
+  const title = titleInput ? titleInput.value.trim() : '';
+  const youtubeUrl = ytInput ? ytInput.value.trim() : '';
 
   if (!title) {
-    input.focus();
+    titleInput.focus();
     return;
   }
 
@@ -1456,15 +1570,18 @@ async function handleAddNewTask() {
     title,
     subject: selectedTaskSubject,
     minutes: selectedTaskMinutes,
+    youtubeUrl: youtubeUrl || '',
     completed: false,
     createdAt: new Date().toISOString()
   };
 
   dailyTasks.unshift(newTask);
-  if (input) input.value = '';
+  if (titleInput) titleInput.value = '';
+  if (ytInput) ytInput.value = '';
 
   await persistTasks();
   renderTasks();
+  updateTelemetryMath();
   showToastNotification(`🎯 Added target: ${title} (${selectedTaskMinutes}m)`);
 }
 
@@ -1510,6 +1627,36 @@ function renderTasks() {
   if (percentTextEl) percentTextEl.textContent = `${percent}%`;
   if (progressFill) progressFill.style.width = `${percent}%`;
 
+  // Update "Next Up" Hero Spotlight
+  const nextUpHero = document.getElementById('taskNextUpHero');
+  const nextUpSubject = document.getElementById('nextUpSubject');
+  const nextUpTitle = document.getElementById('nextUpTitle');
+  const nextUpDuration = document.getElementById('nextUpDuration');
+  const nextUpYtBadge = document.getElementById('nextUpYtBadge');
+  const btnNextUpLockIn = document.getElementById('btnNextUpLockIn');
+
+  const pendingList = dailyTasks.filter(t => !t.completed);
+  if (pendingList.length > 0 && currentTaskFilter !== 'completed') {
+    const topPending = pendingList[0];
+    if (nextUpHero) nextUpHero.classList.remove('hidden');
+    if (nextUpSubject) {
+      nextUpSubject.textContent = topPending.subject;
+      const col = SUBJECT_COLORS[topPending.subject] || '#38bdf8';
+      nextUpSubject.style.color = col;
+      nextUpSubject.style.borderColor = col;
+    }
+    if (nextUpTitle) nextUpTitle.textContent = topPending.title;
+    if (nextUpDuration) nextUpDuration.textContent = `⏱️ ${topPending.minutes}m`;
+    if (nextUpYtBadge) {
+      nextUpYtBadge.classList.toggle('hidden', !topPending.youtubeUrl);
+    }
+    if (btnNextUpLockIn) {
+      btnNextUpLockIn.onclick = () => window.openTargetLockInModal(topPending.id);
+    }
+  } else {
+    if (nextUpHero) nextUpHero.classList.add('hidden');
+  }
+
   if (filtered.length === 0) {
     container.innerHTML = '';
     if (emptyState) emptyState.classList.remove('hidden');
@@ -1530,17 +1677,18 @@ function renderTasks() {
             <span class="task-title-text" title="${escapeHtml(task.title)}">${escapeHtml(task.title)}</span>
             <div class="task-meta-row">
               <span class="task-badge-subject" style="background: ${subjectColor}22; color: ${subjectColor}; border: 1px solid ${subjectColor}44;">${task.subject}</span>
-              <span class="task-badge-duration">⏱️ ${task.minutes}m target</span>
+              <span class="task-badge-duration">⏱️ ${task.minutes}m</span>
+              ${task.youtubeUrl ? `<span class="task-badge-yt">▶ Lecture Linked</span>` : ''}
             </div>
           </div>
         </div>
         <div class="task-card-right">
           ${!task.completed ? `
-            <button type="button" class="btn-task-lockin" onclick="launchTaskInLockIn('${task.id}')" title="Instantly load into StudyLock and begin session">
+            <button type="button" class="btn-task-lockin" onclick="openTargetLockInModal('${task.id}')" title="Choose password & launch Lock-In session">
               <span>▶ Lock In</span>
             </button>
           ` : `
-            <span style="font-size: 11px; font-weight: 800; color: #10b981;">✓ Completed</span>
+            <span style="font-size: 11px; font-weight: 800; color: #10b981;">✓ Done</span>
           `}
           <button type="button" class="btn-task-delete" onclick="deleteStudyTask('${task.id}')" title="Delete target">🗑️</button>
         </div>
@@ -1555,6 +1703,7 @@ window.toggleTaskCompletion = async function(taskId) {
   task.completed = !task.completed;
   await persistTasks();
   renderTasks();
+  updateTelemetryMath();
   if (task.completed) {
     showToastNotification(`🎉 Completed target: ${task.title}!`);
   }
@@ -1564,49 +1713,339 @@ window.deleteStudyTask = async function(taskId) {
   dailyTasks = dailyTasks.filter(t => t.id !== taskId);
   await persistTasks();
   renderTasks();
+  updateTelemetryMath();
   showToastNotification('Target removed.');
 };
 
-window.launchTaskInLockIn = function(taskId) {
+// ========================================================
+// TARGET LOCK-IN LAUNCH POPUP & RUNTIME ENGINE
+// ========================================================
+let currentTargetForLaunch = null;
+let targetModalRandomCode = '';
+let targetModalExitMode = 'random'; // 'random' | 'custom'
+let targetModalLaunchDestination = 'player'; // 'player' | 'clock'
+
+function setupTargetLockInModal() {
+  const modal = document.getElementById('targetLockInModal');
+  const btnCancel = document.getElementById('btnCancelTargetModal');
+  const btnLaunch = document.getElementById('btnConfirmTargetLaunch');
+  const btnPasteYt = document.getElementById('btnTargetModalPasteYt');
+  const btnRegen = document.getElementById('btnTargetRegenCode');
+  const btnExitRand = document.getElementById('btnTargetExitModeRandom');
+  const btnExitCust = document.getElementById('btnTargetExitModeCustom');
+  const boxRand = document.getElementById('boxTargetExitCodeRandom');
+  const boxCust = document.getElementById('boxTargetExitCodeCustom');
+  const btnLaunchPlayer = document.getElementById('btnTargetLaunchPlayer');
+  const btnLaunchClock = document.getElementById('btnTargetLaunchClock');
+  const minInput = document.getElementById('targetModalMinutes');
+  const btnSub5 = document.getElementById('btnTargetModalSub5');
+  const btnAdd5 = document.getElementById('btnTargetModalAdd5');
+
+  if (btnCancel) {
+    btnCancel.addEventListener('click', () => {
+      modal.classList.add('hidden');
+      currentTargetForLaunch = null;
+    });
+  }
+
+  if (btnPasteYt) {
+    btnPasteYt.addEventListener('click', async () => {
+      try {
+        const text = await navigator.clipboard.readText();
+        const urlInput = document.getElementById('targetModalYtUrl');
+        if (urlInput) urlInput.value = text;
+      } catch (e) {}
+    });
+  }
+
+  if (btnRegen) {
+    btnRegen.addEventListener('click', () => {
+      generateTargetModalRandomCode();
+    });
+  }
+
+  if (btnExitRand && btnExitCust) {
+    btnExitRand.addEventListener('click', () => {
+      targetModalExitMode = 'random';
+      btnExitRand.classList.add('active');
+      btnExitCust.classList.remove('active');
+      if (boxRand) boxRand.classList.remove('hidden');
+      if (boxCust) boxCust.classList.add('hidden');
+    });
+
+    btnExitCust.addEventListener('click', () => {
+      targetModalExitMode = 'custom';
+      btnExitCust.classList.add('active');
+      btnExitRand.classList.remove('active');
+      if (boxCust) boxCust.classList.remove('hidden');
+      if (boxRand) boxRand.classList.add('hidden');
+      const passInp = document.getElementById('targetModalCustomPass');
+      if (passInp) passInp.focus();
+    });
+  }
+
+  if (btnLaunchPlayer && btnLaunchClock) {
+    btnLaunchPlayer.addEventListener('click', () => {
+      targetModalLaunchDestination = 'player';
+      btnLaunchPlayer.classList.add('active');
+      btnLaunchClock.classList.remove('active');
+    });
+
+    btnLaunchClock.addEventListener('click', () => {
+      targetModalLaunchDestination = 'clock';
+      btnLaunchClock.classList.add('active');
+      btnLaunchPlayer.classList.remove('active');
+    });
+  }
+
+  // Duration adjustments
+  document.querySelectorAll('#targetModalDurationChips .chip-bold').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('#targetModalDurationChips .chip-bold').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      if (minInput) minInput.value = chip.dataset.minutes;
+    });
+  });
+
+  if (btnSub5 && minInput) {
+    btnSub5.addEventListener('click', () => {
+      let val = Math.max(1, (parseInt(minInput.value, 10) || 45) - 5);
+      minInput.value = val;
+      updateModalChipActive(val);
+    });
+  }
+
+  if (btnAdd5 && minInput) {
+    btnAdd5.addEventListener('click', () => {
+      let val = Math.min(600, (parseInt(minInput.value, 10) || 45) + 5);
+      minInput.value = val;
+      updateModalChipActive(val);
+    });
+  }
+
+  if (minInput) {
+    minInput.addEventListener('input', () => {
+      let val = parseInt(minInput.value, 10) || 45;
+      updateModalChipActive(val);
+    });
+  }
+
+  if (btnLaunch) {
+    btnLaunch.addEventListener('click', executeTargetLockInLaunch);
+  }
+}
+
+function updateModalChipActive(val) {
+  document.querySelectorAll('#targetModalDurationChips .chip-bold').forEach(chip => {
+    chip.classList.toggle('active', parseInt(chip.dataset.minutes, 10) === val);
+  });
+}
+
+function generateTargetModalRandomCode() {
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  targetModalRandomCode = code;
+  const formatted = `${code.slice(0, 3)} ${code.slice(3, 6)}`;
+  const display = document.getElementById('displayTargetModalCode');
+  if (display) display.textContent = formatted;
+}
+
+window.openTargetLockInModal = function(taskId) {
   const task = dailyTasks.find(t => t.id === taskId);
   if (!task) return;
 
-  // 1. Populate Study Player inputs
-  const playerTopic = document.getElementById('playerTopicInput');
-  const playerMinutes = document.getElementById('playerCustomMinutes');
-  if (playerTopic) playerTopic.value = task.title;
-  if (playerMinutes) playerMinutes.value = task.minutes;
+  currentTargetForLaunch = task;
+
+  const modal = document.getElementById('targetLockInModal');
+  const titleEl = document.getElementById('targetModalTitle');
+  const subEl = document.getElementById('targetModalSubject');
+  const ytIndicator = document.getElementById('targetModalYtIndicator');
+  const ytInput = document.getElementById('targetModalYtUrl');
+  const minInput = document.getElementById('targetModalMinutes');
+
+  if (titleEl) titleEl.textContent = task.title;
+  if (subEl) {
+    subEl.textContent = task.subject;
+    const col = SUBJECT_COLORS[task.subject] || '#38bdf8';
+    subEl.style.color = col;
+    subEl.style.borderColor = col;
+  }
+
+  if (minInput) minInput.value = task.minutes || 45;
+  updateModalChipActive(task.minutes || 45);
+
+  if (ytInput) ytInput.value = task.youtubeUrl || '';
+  if (ytIndicator) {
+    if (task.youtubeUrl) {
+      ytIndicator.textContent = '▶ YouTube Lecture Ready';
+      ytIndicator.style.color = '#34d399';
+    } else {
+      ytIndicator.textContent = '⏱️ No link set (Focus Clock or paste link)';
+      ytIndicator.style.color = 'var(--text-dim)';
+    }
+  }
+
+  // Pre-select destination: if YouTube link is present -> Player, else Player
+  targetModalLaunchDestination = task.youtubeUrl ? 'player' : 'player';
+  const btnPlayer = document.getElementById('btnTargetLaunchPlayer');
+  const btnClock = document.getElementById('btnTargetLaunchClock');
+  if (btnPlayer && btnClock) {
+    btnPlayer.classList.toggle('active', targetModalLaunchDestination === 'player');
+    btnClock.classList.toggle('active', targetModalLaunchDestination === 'clock');
+  }
+
+  // Reset exit code mode
+  targetModalExitMode = 'random';
+  const btnRand = document.getElementById('btnTargetExitModeRandom');
+  const btnCust = document.getElementById('btnTargetExitModeCustom');
+  const boxRand = document.getElementById('boxTargetExitCodeRandom');
+  const boxCust = document.getElementById('boxTargetExitCodeCustom');
+  if (btnRand) btnRand.classList.add('active');
+  if (btnCust) btnCust.classList.remove('active');
+  if (boxRand) boxRand.classList.remove('hidden');
+  if (boxCust) boxCust.classList.add('hidden');
+
+  generateTargetModalRandomCode();
+
+  if (modal) modal.classList.remove('hidden');
+};
+
+function executeTargetLockInLaunch() {
+  if (!currentTargetForLaunch) return;
+
+  const task = currentTargetForLaunch;
+  const minutes = parseInt(document.getElementById('targetModalMinutes').value, 10) || 45;
+  const ytUrl = document.getElementById('targetModalYtUrl').value.trim();
+
+  // If user entered or modified YouTube URL, save it back to the task!
+  if (ytUrl !== task.youtubeUrl) {
+    task.youtubeUrl = ytUrl;
+    persistTasks();
+  }
+
+  // Determine unlock key
+  let unlockKey = '';
+  if (targetModalExitMode === 'random') {
+    unlockKey = targetModalRandomCode || '729401';
+  } else {
+    const custPass = document.getElementById('targetModalCustomPass');
+    unlockKey = custPass ? custPass.value.trim() : '';
+    if (!unlockKey) {
+      alert('Please enter a custom exit password or choose the 6-digit notebook code.');
+      if (custPass) custPass.focus();
+      return;
+    }
+  }
+
+  sessionUnlockKey = unlockKey;
+  currentRandomCode = unlockKey;
+
+  // Close modal
+  const modal = document.getElementById('targetLockInModal');
+  if (modal) modal.classList.add('hidden');
+
+  if (targetModalLaunchDestination === 'player') {
+    const videoData = convertToYouTubeData(ytUrl);
+    if (!videoData) {
+      if (confirm('No valid YouTube URL provided. Would you like to launch this session in Focus Clock (Pure Desk Clock) instead?')) {
+        launchTaskIntoClock(task, minutes, unlockKey);
+        return;
+      }
+      switchTab('tabPlayer');
+      document.getElementById('ytUrlInput').focus();
+      showToastNotification('Please paste a YouTube video URL to start lecture immersion.');
+      return;
+    }
+
+    launchTaskIntoPlayer(task, minutes, videoData.videoId, unlockKey);
+  } else {
+    launchTaskIntoClock(task, minutes, unlockKey);
+  }
+}
+
+function launchTaskIntoPlayer(task, minutes, videoId, unlockKey) {
+  // Sync to Player UI fields
+  const topicInput = document.getElementById('playerTopicInput');
+  const minInput = document.getElementById('playerCustomMinutes');
+  const urlInput = document.getElementById('ytUrlInput');
+  if (topicInput) topicInput.value = task.title;
+  if (minInput) minInput.value = minutes;
+  if (urlInput) urlInput.value = task.youtubeUrl || '';
 
   document.querySelectorAll('#playerSubjectChips .chip-bold').forEach(chip => {
     chip.classList.toggle('active', chip.dataset.subject === task.subject);
   });
-  document.querySelectorAll('#playerDurationChips .chip-bold').forEach(chip => {
-    chip.classList.toggle('active', parseInt(chip.dataset.minutes, 10) === task.minutes);
+
+  const hudSub = document.getElementById('playerHudSubject');
+  if (hudSub) hudSub.textContent = task.subject;
+  const hudTop = document.getElementById('playerHudTopic');
+  if (hudTop) hudTop.textContent = task.title;
+
+  switchTab('tabPlayer');
+
+  initPlayerWebview(videoId);
+
+  startSessionEngine({
+    type: 'player',
+    clockMode: 'locked',
+    subject: task.subject,
+    topic: task.title,
+    targetMinutes: minutes
   });
 
-  // 2. Also populate Focus Clock inputs
-  const clockTopic = document.getElementById('clockTopicInput');
-  const clockMinutes = document.getElementById('clockCustomMinutes');
-  if (clockTopic) clockTopic.value = task.title;
-  if (clockMinutes) clockMinutes.value = task.minutes;
+  const studioView = document.querySelector('#tabPlayer .studio-viewport-expansive');
+  if (studioView) studioView.classList.add('hidden');
+  const activeView = document.getElementById('playerActiveView');
+  if (activeView) activeView.classList.remove('hidden');
+
+  window.api.setLockIn(true);
+  showToastNotification(`🚀 Locked in: "${task.title}" (${minutes}m)!`);
+}
+
+function launchTaskIntoClock(task, minutes, unlockKey) {
+  // Sync to Clock UI fields
+  const topicInput = document.getElementById('clockTopicInput');
+  const minInput = document.getElementById('clockCustomMinutes');
+  if (topicInput) topicInput.value = task.title;
+  if (minInput) minInput.value = minutes;
 
   document.querySelectorAll('#clockSubjectChips .chip-bold').forEach(chip => {
     chip.classList.toggle('active', chip.dataset.subject === task.subject);
   });
-  document.querySelectorAll('#clockDurationChips .chip-bold').forEach(chip => {
-    chip.classList.toggle('active', parseInt(chip.dataset.minutes, 10) === task.minutes);
+
+  document.getElementById('colossalSubject').textContent = task.subject;
+  document.getElementById('colossalTopic').textContent = task.title;
+  document.getElementById('colossalTargetText').textContent = `Target: ${minutes}m`;
+
+  clockMode = 'locked';
+  isClockPaused = false;
+  clockPauseStartTimestamp = 0;
+  clockTotalPausedMs = 0;
+
+  const modeBadge = document.getElementById('colossalModeBadge');
+  const strictControls = document.getElementById('clockStrictControls');
+  const freeControls = document.getElementById('clockFreeControls');
+  if (modeBadge) modeBadge.textContent = 'STRICT LOCK-IN';
+  if (strictControls) strictControls.classList.remove('hidden');
+  if (freeControls) freeControls.classList.add('hidden');
+
+  switchTab('tabClock');
+
+  startSessionEngine({
+    type: 'clock',
+    clockMode: 'locked',
+    subject: task.subject,
+    topic: task.title,
+    targetMinutes: minutes
   });
 
-  // 3. Switch to Study Player tab
-  switchTab('tabPlayer');
+  const setupView = document.querySelector('#tabClock .clock-setup-card-expansive');
+  if (setupView) setupView.classList.add('hidden');
+  const activeView = document.getElementById('clockActiveView');
+  if (activeView) activeView.classList.remove('hidden');
 
-  // 4. Focus lecture input
-  const urlInput = document.getElementById('ytUrlInput');
-  if (urlInput) {
-    urlInput.focus();
-    showToastNotification(`🚀 Loaded "${task.title}" (${task.minutes}m)! Paste lecture link or switch to Focus Clock.`);
-  }
-};
+  window.api.setLockIn(true);
+  showToastNotification(`⏱️ Focus Clock locked in: "${task.title}" (${minutes}m)!`);
+}
 
 function autoCompleteMatchingTask(completedTopic) {
   if (!completedTopic || !dailyTasks.length) return;
@@ -1615,6 +2054,7 @@ function autoCompleteMatchingTask(completedTopic) {
     match.completed = true;
     persistTasks();
     renderTasks();
+    updateTelemetryMath();
     showToastNotification(`🎯 Auto-completed matching target: "${match.title}"!`);
   }
 }

@@ -384,133 +384,214 @@
 
     <!-- ==================== TAB 3: TODAY'S PLAN & MIDNIGHT DEADLINE ==================== -->
     <section id="tabTasks" class="tab-pane">
-      <div class="tasks-viewport-container">
-        
-        <!-- TOP HERO: 12 AM MIDNIGHT DEADLINE & TODAY'S DATE -->
-        <div class="midnight-hero-card">
-          <div class="midnight-hero-top-row">
-            <div class="midnight-hero-date-badge">
-              <span class="calendar-icon">📅</span>
-              <span id="tasksHeroDate" class="hero-date-text">Loading today's date...</span>
-            </div>
-            <div class="midnight-cutoff-pill">
-              <span class="pulse-amber-dot"></span>
-              <span>DAILY STUDY CUTOFF: 12:00 AM MIDNIGHT</span>
-            </div>
-          </div>
-
-          <!-- Hero Colossal Digits -->
-          <div class="midnight-countdown-wrap">
-            <div class="midnight-digit-block">
-              <span id="midnightHeroHours" class="m-digit">00</span>
-              <span class="m-label">HOURS</span>
-            </div>
-            <span class="m-colon">:</span>
-            <div class="midnight-digit-block">
-              <span id="midnightHeroMinutes" class="m-digit">00</span>
-              <span class="m-label">MINUTES</span>
-            </div>
-            <span class="m-colon">:</span>
-            <div class="midnight-digit-block">
-              <span id="midnightHeroSeconds" class="m-digit">00</span>
-              <span class="m-label">SECONDS</span>
-            </div>
-          </div>
-
-          <div class="midnight-motto-row">
-            <span class="motto-text">Remaining until midnight cutoff. Finish all pending targets before 12:00 AM!</span>
-            <button type="button" id="btnTestFrictionPrompt" class="btn-subtle-pill" title="Test how the distraction friction alert looks and behaves">
-              <span>⚡ Test Reality Check</span>
-            </button>
-          </div>
-
-          <!-- Day Burn Progress Bar -->
-          <div class="day-burn-container mt-4">
-            <div class="day-burn-labels">
-              <span id="dayBurnPercentText">Day Burn: --% elapsed</span>
-              <span id="dayBurnRemainingText">--h --m left today</span>
-            </div>
-            <div class="day-burn-track">
-              <div id="dayBurnFill" class="day-burn-fill" style="width: 0%;"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- MAIN TASKS PLANNER CARD -->
-        <div class="tasks-planner-card mt-4">
-          <div class="tasks-planner-header">
-            <div class="tasks-title-cluster">
-              <h2 class="tasks-main-title">TODAY'S STUDY TARGETS</h2>
-              <span class="tasks-sub-hint">Set your targets, estimate time, and click "Lock In Now" to crush them.</span>
-            </div>
+      <div class="tasks-studio-viewport">
+        <div class="tasks-studio-grid">
+          
+          <!-- LEFT COLUMN: TIME & TELEMETRY (~380px) -->
+          <div class="tasks-left-column">
             
-            <div id="tasksSummaryBadge" class="tasks-summary-badge">
-              <span id="tasksCompletedCount">0</span> of <span id="tasksTotalCount">0</span> Done (<span id="tasksPercentText">0%</span>)
-            </div>
-          </div>
+            <!-- Watch-Grade Midnight Countdown Card -->
+            <div class="telemetry-card">
+              <div class="telemetry-card-header">
+                <div class="telemetry-date-pill">
+                  <svg class="telemetry-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
+                  <span id="tasksHeroDate" class="telemetry-date-text">Loading date...</span>
+                </div>
+                <span class="telemetry-micro-badge">12 AM CUTOFF</span>
+              </div>
 
-          <!-- Overall Targets Progress Bar -->
-          <div class="tasks-progress-track mt-2">
-            <div id="tasksProgressFill" class="tasks-progress-fill" style="width: 0%;"></div>
-          </div>
-
-          <!-- Quick Add Target Form -->
-          <div class="task-add-panel mt-4">
-            <div class="task-input-primary-row">
-              <input type="text" id="taskTitleInput" class="bold-input-standard" placeholder="Enter target (e.g. Physics HC Verma Ch 7, Maths Integration Ex 3)..." maxlength="100">
-            </div>
-
-            <div class="task-options-row mt-3">
-              <div class="task-option-group">
-                <span class="task-opt-label">SUBJECT:</span>
-                <div class="chip-group-bold" id="taskSubjectChips">
-                  <button type="button" class="chip-bold active" data-subject="Physics">Physics</button>
-                  <button type="button" class="chip-bold" data-subject="Chemistry">Chemistry</button>
-                  <button type="button" class="chip-bold" data-subject="Maths">Maths</button>
-                  <button type="button" class="chip-bold" data-subject="Other">Other</button>
+              <!-- Compact Watch-Grade Tabular Countdown -->
+              <div class="telemetry-clock-display">
+                <div class="t-digit-box">
+                  <span id="midnightHeroHours" class="t-num">00</span>
+                  <span class="t-lbl">HOURS</span>
+                </div>
+                <span class="t-sep">:</span>
+                <div class="t-digit-box">
+                  <span id="midnightHeroMinutes" class="t-num">00</span>
+                  <span class="t-lbl">MIN</span>
+                </div>
+                <span class="t-sep">:</span>
+                <div class="t-digit-box">
+                  <span id="midnightHeroSeconds" class="t-num">00</span>
+                  <span class="t-lbl">SEC</span>
                 </div>
               </div>
 
-              <div class="task-option-group">
-                <span class="task-opt-label">DURATION:</span>
-                <div class="chip-group-bold" id="taskDurationChips">
-                  <button type="button" class="chip-bold" data-minutes="15">15m</button>
-                  <button type="button" class="chip-bold" data-minutes="30">30m</button>
-                  <button type="button" class="chip-bold active" data-minutes="45">45m</button>
-                  <button type="button" class="chip-bold" data-minutes="60">60m</button>
-                  <button type="button" class="chip-bold" data-minutes="90">90m</button>
+              <!-- Precision Hairline Day Burn -->
+              <div class="telemetry-burn-wrap mt-3">
+                <div class="telemetry-burn-header">
+                  <span class="burn-label">DAY BURN</span>
+                  <span id="dayBurnPercentText" class="burn-val">0% elapsed</span>
+                </div>
+                <div class="telemetry-hairline-track">
+                  <div id="dayBurnFill" class="telemetry-hairline-fill" style="width: 0%;"></div>
                 </div>
               </div>
 
-              <button type="button" id="btnAddTask" class="btn-action-primary">+ Add Target</button>
+              <!-- Automated Study Math / Telemetry Buffer Box -->
+              <div class="telemetry-math-card mt-4">
+                <div class="math-row">
+                  <span class="math-label">PLANNED TARGETS:</span>
+                  <span id="telemetryPlannedTime" class="math-value">0h 00m</span>
+                </div>
+                <div class="math-row mt-1">
+                  <span class="math-label">TIME UNTIL 12 AM:</span>
+                  <span id="telemetryRemainingTime" class="math-value">--</span>
+                </div>
+                <div class="math-divider mt-2"></div>
+                <div class="math-row mt-2">
+                  <span class="math-label">SCHEDULE BUFFER:</span>
+                  <span id="telemetryBufferStatus" class="math-buffer-pill positive">+0h 00m buffer</span>
+                </div>
+              </div>
+
+              <!-- Ghost Action for Reality Check Trigger -->
+              <div class="telemetry-footer-action mt-4">
+                <button type="button" id="btnTestFrictionPrompt" class="btn-ghost-telemetry" title="Test how the distraction friction alert looks and behaves">
+                  <svg class="telemetry-mini-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                  </svg>
+                  <span>Test Reality Check Alert</span>
+                </button>
+              </div>
+
             </div>
+
           </div>
 
-          <!-- Filters & Actions Bar -->
-          <div class="tasks-filter-bar mt-4">
-            <div class="filter-pills-row">
-              <button type="button" class="task-filter-btn active" data-filter="all">All (<span id="countAll">0</span>)</button>
-              <button type="button" class="task-filter-btn" data-filter="pending">Pending (<span id="countPending">0</span>)</button>
-              <button type="button" class="task-filter-btn" data-filter="completed">Completed (<span id="countCompleted">0</span>)</button>
+          <!-- RIGHT COLUMN: TARGET COMPOSER & EXECUTION QUEUE (Flex 1) -->
+          <div class="tasks-right-column">
+            
+            <!-- Target Composer Card -->
+            <div class="task-composer-card">
+              <div class="composer-header">
+                <h2 class="composer-title">ADD STUDY TARGET</h2>
+                <span class="composer-shortcut-hint">Press <kbd>/</kbd> anywhere to focus</span>
+              </div>
+
+              <!-- Inputs Grid -->
+              <div class="composer-inputs-wrap mt-3">
+                <div class="composer-input-row">
+                  <input type="text" id="taskTitleInput" class="bold-input-standard" placeholder="Target Topic (e.g. AI Chapter 4, Definite Integrals Exercise 3)..." maxlength="100">
+                </div>
+
+                <!-- Optional YouTube Lecture Link -->
+                <div class="composer-yt-row mt-2">
+                  <div class="composer-yt-input-wrapper">
+                    <svg class="yt-field-icon" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                    </svg>
+                    <input type="text" id="taskYoutubeInput" class="bold-input-standard yt-input-nested" placeholder="Optional YouTube lecture URL (e.g. https://youtu.be/...)...">
+                    <button type="button" id="btnTaskPasteYt" class="btn-input-accessory-mini" title="Paste lecture URL from clipboard">Paste</button>
+                  </div>
+                </div>
+
+                <!-- Options Bar (Subject Chips, Duration Chips & Custom Stepper, Add Button) -->
+                <div class="composer-controls-row mt-3">
+                  <div class="composer-ctrl-group">
+                    <span class="composer-opt-label">SUBJECT</span>
+                    <div class="chip-group-bold" id="taskSubjectChips">
+                      <button type="button" class="chip-bold active" data-subject="Physics">Physics</button>
+                      <button type="button" class="chip-bold" data-subject="Chemistry">Chemistry</button>
+                      <button type="button" class="chip-bold" data-subject="Maths">Maths</button>
+                      <button type="button" class="chip-bold" data-subject="Other">Other</button>
+                    </div>
+                  </div>
+
+                  <div class="composer-ctrl-group">
+                    <span class="composer-opt-label">DURATION</span>
+                    <div class="duration-single-row">
+                      <div class="chip-group-bold" id="taskDurationChips">
+                        <button type="button" class="chip-bold" data-minutes="15">15m</button>
+                        <button type="button" class="chip-bold" data-minutes="30">30m</button>
+                        <button type="button" class="chip-bold active" data-minutes="45">45m</button>
+                        <button type="button" class="chip-bold" data-minutes="60">60m</button>
+                      </div>
+                      <div class="stepper-box-compact">
+                        <button type="button" class="btn-step-mini" id="btnTaskSub5">-5</button>
+                        <input type="number" id="taskCustomMinutes" value="45" min="1" max="600">
+                        <button type="button" class="btn-step-mini" id="btnTaskAdd5">+5</button>
+                        <span class="stepper-unit-mini">min</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button type="button" id="btnAddTask" class="btn-action-primary btn-add-target-solid">+ Add Target</button>
+                </div>
+              </div>
             </div>
 
-            <button type="button" id="btnClearCompletedTasks" class="btn-text-subtle" title="Remove completed targets">Clear Completed</button>
-          </div>
+            <!-- Execution Queue Card -->
+            <div class="task-queue-card mt-4">
+              <div class="queue-toolbar">
+                <div class="queue-filters-row">
+                  <button type="button" class="task-filter-btn active" data-filter="all">All (<span id="countAll">0</span>)</button>
+                  <button type="button" class="task-filter-btn" data-filter="pending">Pending (<span id="countPending">0</span>)</button>
+                  <button type="button" class="task-filter-btn" data-filter="completed">Completed (<span id="countCompleted">0</span>)</button>
+                </div>
 
-          <!-- Dynamic Tasks List -->
-          <div id="dailyTasksList" class="daily-tasks-list mt-3">
-            <!-- Dynamic task items injected here -->
-          </div>
+                <div class="queue-meta-right">
+                  <div id="tasksSummaryBadge" class="queue-progress-pill">
+                    <span id="tasksCompletedCount">0</span> of <span id="tasksTotalCount">0</span> Done (<span id="tasksPercentText">0%</span>)
+                  </div>
+                  <button type="button" id="btnClearCompletedTasks" class="btn-text-subtle" title="Remove completed targets">Clear Done</button>
+                </div>
+              </div>
 
-          <!-- Empty State -->
-          <div id="tasksEmptyState" class="tasks-empty-state hidden">
-            <div class="empty-icon">🎯</div>
-            <h3 class="empty-title">No Study Targets Added Yet</h3>
-            <p class="empty-desc">Break your day into focused targets above. Every target has a 1-click "Lock In" launcher to prevent procrastination!</p>
+              <!-- Queue Hairline Progress -->
+              <div class="queue-progress-track mt-2">
+                <div id="tasksProgressFill" class="queue-progress-fill" style="width: 0%;"></div>
+              </div>
+
+              <!-- "Next Up" Hero Spotlight (Auto-Highlights First Pending Target) -->
+              <div id="taskNextUpHero" class="task-next-up-hero mt-3 hidden">
+                <div class="next-up-header">
+                  <div class="next-up-badge">
+                    <span class="next-up-dot"></span>
+                    <span>NEXT UP IN QUEUE</span>
+                  </div>
+                  <span class="next-up-shortcut-hint">Ctrl+Enter to launch</span>
+                </div>
+                <div class="next-up-body mt-2">
+                  <div class="next-up-left">
+                    <span id="nextUpSubject" class="chip-subject-mini">Physics</span>
+                    <span id="nextUpTitle" class="next-up-title-text">Target Title</span>
+                    <span id="nextUpDuration" class="next-up-duration-text">⏱️ 45m</span>
+                    <span id="nextUpYtBadge" class="next-up-yt-badge hidden">▶ Lecture Linked</span>
+                  </div>
+                  <button type="button" id="btnNextUpLockIn" class="btn-next-up-launch">
+                    <span>▶ Start Lock-In →</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Dynamic Remaining Tasks List -->
+              <div id="dailyTasksList" class="daily-tasks-list mt-3">
+                <!-- Dynamic task items injected here -->
+              </div>
+
+              <!-- Clean Minimalist SVG Empty State -->
+              <div id="tasksEmptyState" class="tasks-empty-state-clean hidden">
+                <svg class="empty-vector-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <circle cx="12" cy="12" r="6"></circle>
+                  <circle cx="12" cy="12" r="2"></circle>
+                </svg>
+                <h3 class="empty-clean-title">Study Queue Empty</h3>
+                <p class="empty-clean-desc">Add your targets above with estimated durations to stay on track before 12:00 AM.</p>
+              </div>
+
+            </div>
+
           </div>
 
         </div>
-
       </div>
     </section>
 
@@ -635,6 +716,91 @@
 
       <div class="friction-footer-note mt-3">
         <span>Zero-Repetition Question Engine • 35 Rotating Deep Reflection Prompts</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== TARGET LOCK-IN LAUNCH POPUP MODAL ==================== -->
+  <div id="targetLockInModal" class="modal-overlay hidden">
+    <div class="macos-dialog-card target-launch-dialog-card">
+      <div class="target-launch-header">
+        <span class="target-launch-eyebrow">START LOCK-IN SESSION</span>
+        <h2 id="targetModalTitle" class="target-launch-title">Target Topic</h2>
+        <div class="target-launch-meta-row mt-1">
+          <span id="targetModalSubject" class="badge-subject">Physics</span>
+          <span id="targetModalYtIndicator" class="target-yt-indicator">▶ YouTube Lecture Ready</span>
+        </div>
+      </div>
+
+      <!-- Duration Adjuster (Stepper + Chips) -->
+      <div class="form-group text-left mt-4">
+        <label class="form-label-bold">SESSION DURATION</label>
+        <div class="duration-single-row mt-1">
+          <div class="chip-group-bold" id="targetModalDurationChips">
+            <button type="button" class="chip-bold" data-minutes="15">15m</button>
+            <button type="button" class="chip-bold" data-minutes="25">25m</button>
+            <button type="button" class="chip-bold active" data-minutes="45">45m</button>
+            <button type="button" class="chip-bold" data-minutes="60">60m</button>
+          </div>
+          <div class="stepper-box-compact">
+            <button type="button" class="btn-step-mini" id="btnTargetModalSub5">-5</button>
+            <input type="number" id="targetModalMinutes" value="45" min="1" max="600">
+            <button type="button" class="btn-step-mini" id="btnTargetModalAdd5">+5</button>
+            <span class="stepper-unit-mini">min</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Optional / Editable YouTube Link -->
+      <div class="form-group text-left mt-3">
+        <label class="form-label-bold">YOUTUBE LECTURE (OPTIONAL FOR FOCUS CLOCK)</label>
+        <div class="composer-yt-input-wrapper mt-1">
+          <input type="text" id="targetModalYtUrl" class="bold-input-standard yt-input-nested" placeholder="Paste YouTube link (leave empty to use Focus Clock)...">
+          <button type="button" id="btnTargetModalPasteYt" class="btn-input-accessory-mini">Paste</button>
+        </div>
+      </div>
+
+      <!-- Exit Code Room (Notebook Code vs Custom Password) -->
+      <div class="form-group text-left mt-4">
+        <div class="exit-code-mode-row">
+          <span class="form-label-bold">SECURITY EXIT CODE</span>
+          <div class="segmented-mini-selector">
+            <button type="button" class="btn-seg-mini active" id="btnTargetExitModeRandom">Notebook Code</button>
+            <button type="button" class="btn-seg-mini" id="btnTargetExitModeCustom">Custom Password</button>
+          </div>
+        </div>
+
+        <!-- Option A: Random 6-digit code -->
+        <div id="boxTargetExitCodeRandom" class="mt-2">
+          <div class="exit-code-strip">
+            <div class="exit-code-meta">
+              <span class="exit-code-label">WRITE THIS IN YOUR NOTEBOOK:</span>
+              <span class="exit-code-number" id="displayTargetModalCode">482 109</span>
+            </div>
+            <button type="button" id="btnTargetRegenCode" class="btn-text-subtle" title="Generate new code">Regenerate</button>
+          </div>
+        </div>
+
+        <!-- Option B: Custom user password -->
+        <div id="boxTargetExitCodeCustom" class="mt-2 hidden">
+          <input type="password" id="targetModalCustomPass" class="bold-input-standard" placeholder="Enter custom exit password..." autocomplete="off">
+          <div class="form-hint-bold">You will need to enter this exact password if you need to unlock early.</div>
+        </div>
+      </div>
+
+      <!-- Study Mode Target Selector -->
+      <div class="form-group text-left mt-3">
+        <label class="form-label-bold">LAUNCH DESTINATION</label>
+        <div class="segmented-mini-selector full-width mt-1">
+          <button type="button" class="btn-seg-mini active" id="btnTargetLaunchPlayer">▶ Study Player (YouTube Lecture)</button>
+          <button type="button" class="btn-seg-mini" id="btnTargetLaunchClock">⏱️ Focus Clock (Pure Desk Clock)</button>
+        </div>
+      </div>
+
+      <!-- Actions Row -->
+      <div class="dialog-actions-row mt-5">
+        <button type="button" id="btnCancelTargetModal" class="btn-dialog-cancel">Cancel</button>
+        <button type="button" id="btnConfirmTargetLaunch" class="btn-dialog-primary">🚀 Enter Lock-In Now</button>
       </div>
     </div>
   </div>
